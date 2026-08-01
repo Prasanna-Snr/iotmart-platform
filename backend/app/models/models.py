@@ -1,0 +1,230 @@
+import uuid
+from datetime import datetime, timezone
+from sqlalchemy import (
+    String, Text, Boolean, Integer, Float, DateTime,
+    ForeignKey, Enum as SAEnum, ARRAY
+)
+from sqlalchemy.dialects.postgresql import UUID, JSONB
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+from app.database import Base
+
+
+def utcnow():
+    return datetime.now(timezone.utc)
+
+
+# ─── Users ────────────────────────────────────────────────────────────────────
+
+class User(Base):
+    __tablename__ = "users"
+
+    id:            Mapped[uuid.UUID]  = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    name:          Mapped[str]        = mapped_column(String(255), nullable=False)
+    email:         Mapped[str]        = mapped_column(String(255), unique=True, nullable=False, index=True)
+    hashed_password: Mapped[str]      = mapped_column(String(255), nullable=False)
+    role:          Mapped[str]        = mapped_column(SAEnum("customer", "admin", name="user_role"), default="customer")
+    avatar:        Mapped[str | None] = mapped_column(Text, nullable=True)
+    phone:         Mapped[str | None] = mapped_column(String(50), nullable=True)
+    address:       Mapped[dict | None]= mapped_column(JSONB, nullable=True)
+    is_active:     Mapped[bool]       = mapped_column(Boolean, default=True)
+    created_at:    Mapped[datetime]   = mapped_column(DateTime(timezone=True), default=utcnow)
+    updated_at:    Mapped[datetime]   = mapped_column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)
+
+    orders:   Mapped[list["Order"]]         = relationship("Order", back_populates="user")
+    reviews:  Mapped[list["ProductReview"]] = relationship("ProductReview", back_populates="user")
+
+
+# ─── Categories ───────────────────────────────────────────────────────────────
+
+class Category(Base):
+    __tablename__ = "categories"
+
+    id:          Mapped[uuid.UUID]  = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    name:        Mapped[str]        = mapped_column(String(255), nullable=False)
+    slug:        Mapped[str]        = mapped_column(String(255), unique=True, nullable=False, index=True)
+    description: Mapped[str]        = mapped_column(Text, default="")
+    image:       Mapped[str]        = mapped_column(Text, default="")
+    created_at:  Mapped[datetime]   = mapped_column(DateTime(timezone=True), default=utcnow)
+
+    products: Mapped[list["Product"]] = relationship("Product", back_populates="category")
+
+
+# ─── Brands ───────────────────────────────────────────────────────────────────
+
+class Brand(Base):
+    __tablename__ = "brands"
+
+    id:         Mapped[uuid.UUID]  = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    name:       Mapped[str]        = mapped_column(String(255), nullable=False)
+    slug:       Mapped[str]        = mapped_column(String(255), unique=True, nullable=False, index=True)
+    logo:       Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime]   = mapped_column(DateTime(timezone=True), default=utcnow)
+
+    products: Mapped[list["Product"]] = relationship("Product", back_populates="brand")
+
+
+# ─── Products ─────────────────────────────────────────────────────────────────
+
+class Product(Base):
+    __tablename__ = "products"
+
+    id:               Mapped[uuid.UUID]  = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    name:             Mapped[str]        = mapped_column(String(255), nullable=False)
+    slug:             Mapped[str]        = mapped_column(String(255), unique=True, nullable=False, index=True)
+    sku:              Mapped[str]        = mapped_column(String(100), unique=True, nullable=False)
+    description:      Mapped[str]        = mapped_column(Text, default="")
+    short_description:Mapped[str]        = mapped_column(Text, default="")
+    price:            Mapped[float]      = mapped_column(Float, nullable=False)
+    original_price:   Mapped[float|None] = mapped_column(Float, nullable=True)
+    currency:         Mapped[str]        = mapped_column(String(10), default="USD")
+    images:           Mapped[list]       = mapped_column(JSONB, default=list)
+    tags:             Mapped[list]       = mapped_column(JSONB, default=list)
+    specs:            Mapped[list]       = mapped_column(JSONB, default=list)  # [{label, value}]
+    stock:            Mapped[int]        = mapped_column(Integer, default=0)
+    rating:           Mapped[float]      = mapped_column(Float, default=0.0)
+    review_count:     Mapped[int]        = mapped_column(Integer, default=0)
+    featured:         Mapped[bool]       = mapped_column(Boolean, default=False)
+    new_arrival:      Mapped[bool]       = mapped_column(Boolean, default=False)
+    best_seller:      Mapped[bool]       = mapped_column(Boolean, default=False)
+    in_stock:         Mapped[bool]       = mapped_column(Boolean, default=True)
+    weight:           Mapped[str|None]   = mapped_column(String(50), nullable=True)
+    dimensions:       Mapped[str|None]   = mapped_column(String(100), nullable=True)
+    related_product_ids: Mapped[list]    = mapped_column(JSONB, default=list)
+    category_id:      Mapped[uuid.UUID]  = mapped_column(UUID(as_uuid=True), ForeignKey("categories.id"), nullable=False)
+    brand_id:         Mapped[uuid.UUID | None]  = mapped_column(UUID(as_uuid=True), ForeignKey("brands.id"), nullable=True)
+    created_at:       Mapped[datetime]   = mapped_column(DateTime(timezone=True), default=utcnow)
+    updated_at:       Mapped[datetime]   = mapped_column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)
+
+    category: Mapped["Category"]            = relationship("Category", back_populates="products")
+    brand:    Mapped["Brand"]               = relationship("Brand", back_populates="products")
+    reviews:  Mapped[list["ProductReview"]] = relationship("ProductReview", back_populates="product", cascade="all, delete-orphan")
+
+
+class ProductReview(Base):
+    __tablename__ = "product_reviews"
+
+    id:         Mapped[uuid.UUID]  = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    product_id: Mapped[uuid.UUID]  = mapped_column(UUID(as_uuid=True), ForeignKey("products.id", ondelete="CASCADE"), nullable=False)
+    user_id:    Mapped[uuid.UUID]  = mapped_column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    user_name:  Mapped[str]        = mapped_column(String(255), nullable=False)
+    user_avatar:Mapped[str|None]   = mapped_column(Text, nullable=True)
+    rating:     Mapped[int]        = mapped_column(Integer, nullable=False)
+    title:      Mapped[str]        = mapped_column(String(255), nullable=False)
+    body:       Mapped[str]        = mapped_column(Text, default="")
+    verified:   Mapped[bool]       = mapped_column(Boolean, default=False)
+    created_at: Mapped[datetime]   = mapped_column(DateTime(timezone=True), default=utcnow)
+
+    product: Mapped["Product"] = relationship("Product", back_populates="reviews")
+    user:    Mapped["User"]    = relationship("User", back_populates="reviews")
+
+
+# ─── Tutorial Categories ──────────────────────────────────────────────────────
+
+class TutorialCategory(Base):
+    __tablename__ = "tutorial_categories"
+
+    id:          Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    name:        Mapped[str]       = mapped_column(String(255), nullable=False)
+    slug:        Mapped[str]       = mapped_column(String(255), unique=True, nullable=False, index=True)
+    description: Mapped[str]       = mapped_column(Text, default="")
+    icon:        Mapped[str]       = mapped_column(String(100), default="")
+    created_at:  Mapped[datetime]  = mapped_column(DateTime(timezone=True), default=utcnow)
+
+    tutorials: Mapped[list["Tutorial"]] = relationship("Tutorial", back_populates="category")
+
+
+# ─── Tutorials ────────────────────────────────────────────────────────────────
+
+class Tutorial(Base):
+    __tablename__ = "tutorials"
+
+    id:                  Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    title:               Mapped[str]       = mapped_column(String(255), nullable=False)
+    slug:                Mapped[str]       = mapped_column(String(255), unique=True, nullable=False, index=True)
+    description:         Mapped[str]       = mapped_column(Text, default="")
+    short_description:   Mapped[str]       = mapped_column(Text, default="")
+    difficulty:          Mapped[str]       = mapped_column(SAEnum("Beginner", "Intermediate", "Advanced", name="difficulty_level"), default="Beginner")
+    estimated_time:      Mapped[str]       = mapped_column(String(100), default="")
+    components:          Mapped[list]      = mapped_column(JSONB, default=list)
+    sensors:             Mapped[list]      = mapped_column(JSONB, default=list)
+    microcontrollers:    Mapped[list]      = mapped_column(JSONB, default=list)
+    circuit_diagram:     Mapped[str|None]  = mapped_column(Text, nullable=True)
+    wiring_instructions: Mapped[list]      = mapped_column(JSONB, default=list)
+    source_code:         Mapped[str]       = mapped_column(Text, default="")
+    code_language:       Mapped[str]       = mapped_column(String(50), default="cpp")
+    steps:               Mapped[list]      = mapped_column(JSONB, default=list)
+    prerequisites:       Mapped[list]      = mapped_column(JSONB, default=list)
+    learning_outcomes:   Mapped[list]      = mapped_column(JSONB, default=list)
+    related_product_ids: Mapped[list]      = mapped_column(JSONB, default=list)
+    related_tutorial_ids:Mapped[list]      = mapped_column(JSONB, default=list)
+    cover_image:         Mapped[str]       = mapped_column(Text, default="")
+    views:               Mapped[int]       = mapped_column(Integer, default=0)
+    featured:            Mapped[bool]      = mapped_column(Boolean, default=False)
+    published:           Mapped[bool]      = mapped_column(Boolean, default=False)
+    author:              Mapped[str]       = mapped_column(String(255), default="")
+    tags:                Mapped[list]      = mapped_column(JSONB, default=list)
+    category_id:         Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("tutorial_categories.id"), nullable=False)
+    created_at:          Mapped[datetime]  = mapped_column(DateTime(timezone=True), default=utcnow)
+    updated_at:          Mapped[datetime]  = mapped_column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)
+
+    category: Mapped["TutorialCategory"] = relationship("TutorialCategory", back_populates="tutorials")
+
+
+# ─── Orders ───────────────────────────────────────────────────────────────────
+
+class Order(Base):
+    __tablename__ = "orders"
+
+    id:               Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    order_number:     Mapped[str]       = mapped_column(String(50), unique=True, nullable=False, index=True)
+    user_id:          Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    items:            Mapped[list]      = mapped_column(JSONB, nullable=False)
+    shipping_address: Mapped[dict]      = mapped_column(JSONB, nullable=False)
+    status:           Mapped[str]       = mapped_column(
+        SAEnum("pending","processing","shipped","delivered","cancelled","refunded", name="order_status"),
+        default="pending"
+    )
+    subtotal:         Mapped[float]     = mapped_column(Float, nullable=False)
+    shipping_cost:    Mapped[float]     = mapped_column(Float, default=0.0)
+    tax:              Mapped[float]     = mapped_column(Float, default=0.0)
+    total:            Mapped[float]     = mapped_column(Float, nullable=False)
+    payment_method:   Mapped[str]       = mapped_column(String(100), default="")
+    payment_status:   Mapped[str]       = mapped_column(
+        SAEnum("pending","paid","failed","refunded", name="payment_status"),
+        default="pending"
+    )
+    notes:            Mapped[str|None]  = mapped_column(Text, nullable=True)
+    created_at:       Mapped[datetime]  = mapped_column(DateTime(timezone=True), default=utcnow)
+    updated_at:       Mapped[datetime]  = mapped_column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)
+
+    user: Mapped["User"] = relationship("User", back_populates="orders")
+
+
+# ─── CMS Pages ────────────────────────────────────────────────────────────────
+
+class CMSPage(Base):
+    __tablename__ = "cms_pages"
+
+    id:         Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    title:      Mapped[str]       = mapped_column(String(255), nullable=False)
+    slug:       Mapped[str]       = mapped_column(String(255), unique=True, nullable=False, index=True)
+    status:     Mapped[str]       = mapped_column(SAEnum("published","draft", name="page_status"), default="draft")
+    blocks:     Mapped[list]      = mapped_column(JSONB, default=list)
+    created_at: Mapped[datetime]  = mapped_column(DateTime(timezone=True), default=utcnow)
+    updated_at: Mapped[datetime]  = mapped_column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)
+
+
+# ─── Banners ──────────────────────────────────────────────────────────────────
+
+class Banner(Base):
+    __tablename__ = "banners"
+
+    id:         Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    title:      Mapped[str]       = mapped_column(String(255), nullable=False)
+    subtitle:   Mapped[str]       = mapped_column(Text, default="")
+    cta_text:   Mapped[str]       = mapped_column(String(100), default="")
+    cta_link:   Mapped[str]       = mapped_column(String(500), default="")
+    image:      Mapped[str]       = mapped_column(Text, default="")
+    active:     Mapped[bool]      = mapped_column(Boolean, default=True)
+    order:      Mapped[int]       = mapped_column(Integer, default=0)
+    created_at: Mapped[datetime]  = mapped_column(DateTime(timezone=True), default=utcnow)
