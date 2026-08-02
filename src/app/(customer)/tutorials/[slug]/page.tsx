@@ -282,7 +282,7 @@ export default async function TutorialDetailPage({ params }: PageProps) {
                       <p className="text-xs font-medium text-[#11100E] group-hover:text-[#5D1C34] line-clamp-2 transition-colors">
                         {product.name}
                       </p>
-                      <p className="text-xs text-[#A67D45] font-semibold">${product.price}</p>
+                      <p className="text-xs text-[#A67D45] font-semibold">Rs. {Math.round(product.price).toLocaleString()}</p>
                     </div>
                   </Link>
                 ))}

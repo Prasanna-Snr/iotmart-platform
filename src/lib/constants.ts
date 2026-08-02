@@ -5,8 +5,8 @@ export const SITE_DESCRIPTION =
   process.env.NEXT_PUBLIC_SITE_DESCRIPTION ??
   "Your one-stop shop for IoT gadgets, sensors, and development boards";
 
-export const CURRENCY = "USD";
-export const CURRENCY_SYMBOL = "$";
+export const CURRENCY = "NPR";
+export const CURRENCY_SYMBOL = "Rs. ";
 export const TAX_RATE = 0.08; // 8%
 export const FREE_SHIPPING_THRESHOLD = 50;
 export const SHIPPING_COST = 5.99;

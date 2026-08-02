@@ -180,6 +180,44 @@ export const usersApi = {
     apiFetch(`users/${id}`, { method: "DELETE", token }),
 };
 
+// ─── Reviews ──────────────────────────────────────────────────────────────────
+
+export const reviewsApi = {
+  list: (token: string, params?: { verified?: boolean; search?: string }): Promise<any[]> => {
+    const qs = new URLSearchParams();
+    if (params?.verified !== undefined) qs.set("verified", String(params.verified));
+    if (params?.search) qs.set("search", params.search);
+    const q = qs.toString();
+    return apiFetch(`reviews${q ? "?" + q : ""}`, { token });
+  },
+  verify: (id: string, token: string): Promise<any> =>
+    apiFetch(`reviews/${id}/verify`, { method: "PATCH", token }),
+  delete: (id: string, token: string): Promise<void> =>
+    apiFetch(`reviews/${id}`, { method: "DELETE", token }),
+};
+
+// ─── Contact ──────────────────────────────────────────────────────────────────
+
+export const contactApi = {
+  submit: (body: { name: string; email: string; subject: string; message: string }): Promise<any> =>
+    apiFetch("contact", { method: "POST", body: JSON.stringify(body) }),
+  list: (token: string): Promise<any[]> =>
+    apiFetch("contact", { token }),
+  markRead: (id: string, token: string): Promise<any> =>
+    apiFetch(`contact/${id}/read`, { method: "PATCH", token }),
+  delete: (id: string, token: string): Promise<void> =>
+    apiFetch(`contact/${id}`, { method: "DELETE", token }),
+};
+
+// ─── Settings ─────────────────────────────────────────────────────────────────
+
+export const settingsApi = {
+  get: (token?: string): Promise<{ settings: Record<string, string> }> =>
+    apiFetch("settings", token ? { token } : {}),
+  save: (settings: Record<string, string>, token: string): Promise<{ settings: Record<string, string> }> =>
+    apiFetch("settings", { method: "PUT", body: JSON.stringify({ settings }), token }),
+};
+
 // ─── Upload ───────────────────────────────────────────────────────────────────
 
 export const uploadApi = {

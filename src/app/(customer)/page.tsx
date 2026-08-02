@@ -55,7 +55,7 @@ export default function HomePage() {
               { icon: Package,  label: "Products",      value: "200+" },
               { icon: BookOpen, label: "Tutorials",     value: "50+"  },
               { icon: Users,    label: "Makers",        value: "10K+" },
-              { icon: Truck,    label: "Free Shipping", value: "Over $50" },
+              { icon: Truck,    label: "Free Shipping", value: "Over Rs. 50" },
             ].map(({ icon: Icon, label, value }) => (
               <div key={label} className="flex items-center justify-center gap-2 py-3 text-white">
                 <Icon size={16} className="text-[#A67D45] flex-shrink-0" />
@@ -136,7 +136,7 @@ export default function HomePage() {
             {[
               { icon: Shield,   title: "Quality Guaranteed", body: "Every component is tested and sourced from trusted manufacturers." },
               { icon: BookOpen, title: "Free Tutorials",     body: "Detailed project guides for every skill level — beginner to advanced." },
-              { icon: Truck,    title: "Fast Shipping",      body: "Free shipping on orders over $50. Most orders ship within 24 hours." },
+              { icon: Truck,    title: "Fast Shipping",      body: "Free shipping on orders over Rs. 50. Most orders ship within 24 hours." },
             ].map(({ icon: Icon, title, body }) => (
               <div key={title} className="flex gap-4 bg-white rounded-xl p-6 border border-[#CDBBAD]/40">
                 <div className="bg-[#5D1C34]/10 p-3 rounded-lg h-fit"><Icon size={20} className="text-[#5D1C34]" /></div>

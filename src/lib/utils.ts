@@ -16,7 +16,8 @@ export function cn(...inputs: ClassValue[]) {
 // ─── Currency Formatting ──────────────────────────────────────────────────────
 
 export function formatPrice(amount: number): string {
-  return `${CURRENCY_SYMBOL}${amount.toFixed(2)}`;
+  // No decimal places for Rupees (Rs. 250 not Rs. 250.00)
+  return `${CURRENCY_SYMBOL}${Math.round(amount).toLocaleString()}`;
 }
 
 export function calculateDiscount(

@@ -3,6 +3,7 @@ import Link from "next/link";
 import { BookOpen } from "lucide-react";
 import { tutorialsApi } from "@/lib/api";
 import TutorialCard from "@/components/tutorial/TutorialCard";
+import PaginationLinks from "@/components/ui/PaginationLinks";
 import { DIFFICULTY_COLORS } from "@/lib/constants";
 
 export const metadata: Metadata = {
@@ -94,17 +95,13 @@ export default async function TutorialsPage({ searchParams }: PageProps) {
           )}
 
           {totalPages > 1 && (
-            <div className="flex justify-center gap-1 mt-8 flex-wrap">
-              {Array.from({ length: totalPages }, (_, i) => {
-                const p = { ...params, page: String(i + 1) };
-                return (
-                  <Link key={i} href={`/tutorials?${new URLSearchParams(p).toString()}`}
-                    className={`min-w-[36px] h-9 px-3 rounded-lg text-sm font-medium border inline-flex items-center justify-center transition-colors ${page === i + 1 ? "bg-[#5D1C34] text-white border-[#5D1C34]" : "border-[#CDBBAD] text-[#11100E] hover:bg-[#5D1C34] hover:text-white"}`}>
-                    {i + 1}
-                  </Link>
-                );
-              })}
-            </div>
+            <PaginationLinks
+              currentPage={page}
+              totalPages={totalPages}
+              basePath="/tutorials"
+              params={params}
+              className="mt-8"
+            />
           )}
         </div>
 

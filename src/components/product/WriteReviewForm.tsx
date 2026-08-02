@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Star, CheckCircle, AlertCircle, LogIn } from "lucide-react";
@@ -22,8 +22,14 @@ export default function WriteReviewForm({ productId, onSubmitted }: Props) {
   const [success, setSuccess] = useState(false);
   const [error, setError]     = useState("");
   const [errors, setErrors]   = useState<{ rating?: string; title?: string }>({});
+  const [token, setToken]     = useState<string | null>(null);
+  const [mounted, setMounted] = useState(false);
 
-  const token = getCustomerToken();
+  // Defer token read to client-side to avoid SSR/client hydration mismatch
+  useEffect(() => {
+    setToken(getCustomerToken());
+    setMounted(true);
+  }, []);
 
   const validate = () => {
     const e: typeof errors = {};
@@ -58,6 +64,11 @@ export default function WriteReviewForm({ productId, onSubmitted }: Props) {
   };
 
   // Not logged in
+  if (!mounted) {
+    // Render a neutral placeholder on both server and client until mounted
+    return <div className="bg-white rounded-xl border border-[#CDBBAD]/50 p-5 h-20 animate-pulse" />;
+  }
+
   if (!token) {
     return (
       <div className="bg-[#F0E9E3]/60 border border-[#CDBBAD]/50 rounded-xl p-5 flex items-center gap-4">

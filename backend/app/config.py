@@ -9,7 +9,7 @@ class Settings(BaseSettings):
     # JWT
     secret_key: str = "change-me-in-production-use-a-long-random-string"
     algorithm: str = "HS256"
-    access_token_expire_minutes: int = 30
+    access_token_expire_minutes: int = 1440  # 24 hours
     refresh_token_expire_days: int = 7
 
     # App

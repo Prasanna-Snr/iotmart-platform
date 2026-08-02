@@ -9,7 +9,7 @@ import ProductCard from "@/components/product/ProductCard";
 import StarRating from "@/components/ui/StarRating";
 import Badge from "@/components/ui/Badge";
 import Breadcrumb from "@/components/ui/Breadcrumb";
-import { formatPrice, calculateDiscount, timeAgo } from "@/lib/utils";
+import { formatPrice, calculateDiscount, formatDateShort } from "@/lib/utils";
 import { generateProductMetadata, productJsonLd } from "@/lib/seo";
 import WriteReviewForm from "@/components/product/WriteReviewForm";
 
@@ -228,7 +228,7 @@ export default async function ProductDetailPage({ params }: PageProps) {
                           </div>
                           <StarRating rating={review.rating} size={13} className="mt-1" />
                         </div>
-                        <time className="text-xs text-[#899581]">{timeAgo(review.date)}</time>
+                        <time className="text-xs text-[#899581]">{formatDateShort(review.date)}</time>
                       </div>
                       <h4 className="font-medium text-sm text-[#11100E] mb-1">{review.title}</h4>
                       <p className="text-sm text-[#899581]">{review.body}</p>

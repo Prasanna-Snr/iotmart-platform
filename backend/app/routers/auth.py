@@ -78,6 +78,9 @@ async def me(user: User = Depends(get_current_user)):
 
 @router.patch("/me", response_model=UserOut)
 async def update_me(body: UserUpdate, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
-    for field, value in body.model_dump(exclude_none=True).items():
+    data = body.model_dump(exclude_none=True)
+    if "password" in data:
+        user.hashed_password = hash_password(data.pop("password"))
+    for field, value in data.items():
         setattr(user, field, value)
     return UserOut.model_validate(user)

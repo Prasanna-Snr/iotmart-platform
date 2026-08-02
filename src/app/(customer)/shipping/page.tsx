@@ -15,7 +15,7 @@ export default function ShippingPage() {
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 mb-10">
           {[
-            { icon: Truck,   title: "Free Shipping",   body: "All US orders over $50 qualify for free standard shipping." },
+            { icon: Truck,   title: "Free Shipping",   body: "All orders over Rs. 50 qualify for free standard shipping." },
             { icon: Clock,   title: "Processing Time", body: "Orders are processed within 1–2 business days." },
             { icon: Package, title: "Packaging",       body: "All components are carefully packaged in anti-static, padded boxes." },
             { icon: Globe,   title: "International",   body: "We ship to 35+ countries. Rates calculated at checkout." },
@@ -41,10 +41,10 @@ export default function ShippingPage() {
             </thead>
             <tbody>
               {[
-                ["Standard Shipping",     "3–7 business days",  "Free over $50, else $5.99"],
-                ["Express Shipping",      "1–2 business days",  "$12.99"],
-                ["International Standard","7–21 business days", "$14.99–$24.99"],
-                ["International Express", "3–7 business days",  "$39.99"],
+                ["Standard Shipping",     "3–7 business days",  "Free over Rs. 50, else Rs. 5.99"],
+                ["Express Shipping",      "1–2 business days",  "Rs. 12.99"],
+                ["International Standard","7–21 business days", "Rs. 14.99–Rs. 24.99"],
+                ["International Express", "3–7 business days",  "Rs. 39.99"],
               ].map(([method, time, cost], idx) => (
                 <tr key={idx} className={idx % 2 === 0 ? "bg-white" : "bg-[#F0E9E3]/30"}>
                   <td className="px-4 py-3 font-medium text-[#11100E]">{method}</td>

@@ -214,6 +214,30 @@ class CMSPage(Base):
     updated_at: Mapped[datetime]  = mapped_column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)
 
 
+# ─── Contact Messages ─────────────────────────────────────────────────────────
+
+class ContactMessage(Base):
+    __tablename__ = "contact_messages"
+
+    id:         Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    name:       Mapped[str]       = mapped_column(String(255), nullable=False)
+    email:      Mapped[str]       = mapped_column(String(255), nullable=False)
+    subject:    Mapped[str]       = mapped_column(String(100), nullable=False)
+    message:    Mapped[str]       = mapped_column(Text, nullable=False)
+    read:       Mapped[bool]      = mapped_column(Boolean, default=False)
+    created_at: Mapped[datetime]  = mapped_column(DateTime(timezone=True), default=utcnow)
+
+
+# ─── Site Settings ────────────────────────────────────────────────────────────
+
+class SiteSettings(Base):
+    __tablename__ = "site_settings"
+
+    key:        Mapped[str]      = mapped_column(String(100), primary_key=True)
+    value:      Mapped[str]      = mapped_column(Text, default="")
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)
+
+
 # ─── Banners ──────────────────────────────────────────────────────────────────
 
 class Banner(Base):

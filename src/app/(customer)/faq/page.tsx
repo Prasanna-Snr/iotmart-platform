@@ -15,7 +15,7 @@ const sections = [
   {
     title: "Shipping",
     items: [
-      { q: "Do you offer free shipping?",   a: "Yes! All orders over $50 qualify for free standard shipping within the US." },
+      { q: "Do you offer free shipping?",   a: "Yes! All orders over Rs. 50 qualify for free standard shipping." },
       { q: "How long does shipping take?",  a: "Standard shipping: 3–7 business days. Express: 1–2 business days. International: 7–21 business days." },
       { q: "Do you ship internationally?",  a: "We ship to 35+ countries worldwide. International shipping rates are calculated at checkout." },
     ],

@@ -271,7 +271,7 @@ export default function AdminAddProductPage() {
             <div className="bg-white rounded-xl border border-[#CDBBAD]/50 p-5 space-y-4">
               <h2 className="font-semibold text-[#11100E]">Pricing & Inventory</h2>
               <Input
-                label="Price ($)"
+                label="Price (Rs.)"
                 type="number"
                 min="0"
                 step="0.01"
@@ -281,7 +281,7 @@ export default function AdminAddProductPage() {
                 required
               />
               <Input
-                label="Original Price ($)"
+                label="Original Price (Rs.)"
                 type="number"
                 min="0"
                 step="0.01"

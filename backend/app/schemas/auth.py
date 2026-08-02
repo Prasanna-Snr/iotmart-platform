@@ -37,3 +37,5 @@ class UserUpdate(BaseModel):
     phone: str | None = None
     avatar: str | None = None
     address: dict | None = None
+    password: str | None = None
+    password: str | None = None
