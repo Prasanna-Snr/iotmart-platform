@@ -61,6 +61,9 @@ export const authApi = {
   me: (token: string) =>
     apiFetch("auth/me", { token }),
 
+  updateMe: (body: { name?: string; phone?: string; avatar?: string; address?: object; password?: string }, token: string) =>
+    apiFetch("auth/me", { method: "PATCH", body: JSON.stringify(body), token }),
+
   logout: () =>
     apiFetch("auth/logout", { method: "POST" }),
 };
