@@ -18,7 +18,7 @@ export default async function TutorialsPage({ searchParams }: PageProps) {
   const page = Number(params.page ?? 1);
   const PAGE_SIZE = 9;
 
-  const [data, categories, featured] = await Promise.all([
+  const [data, categories] = await Promise.all([
     tutorialsApi.list({
       category:   params.category,
       difficulty: params.difficulty,
@@ -28,8 +28,6 @@ export default async function TutorialsPage({ searchParams }: PageProps) {
       page_size:  PAGE_SIZE,
     }).catch(() => ({ items: [], total: 0, page: 1, page_size: PAGE_SIZE })),
     tutorialsApi.categories().catch(() => []),
-    tutorialsApi.list({ featured: true, published: true, page_size: 4 })
-      .then((r) => r.items).catch(() => []),
   ]);
 
   const { items, total } = data;
@@ -75,50 +73,38 @@ export default async function TutorialsPage({ searchParams }: PageProps) {
             </Link>
           );
         })}
-        {params.difficulty && <Link href="/tutorials" className="px-3 py-1 rounded-full text-xs text-[#5D1C34] hover:underline">Clear ×</Link>}
+        {params.difficulty && (
+          <Link href="/tutorials" className="px-3 py-1 rounded-full text-xs text-[#5D1C34] hover:underline">
+            Clear ×
+          </Link>
+        )}
       </div>
 
-      <div className="flex flex-col lg:flex-row gap-8">
-        <div className="flex-1 min-w-0">
-          <p className="text-sm text-[#899581] mb-4">{total} tutorial{total !== 1 ? "s" : ""} found</p>
+      <p className="text-sm text-[#899581] mb-4">{total} tutorial{total !== 1 ? "s" : ""} found</p>
 
-          {items.length === 0 ? (
-            <div className="bg-white rounded-xl border border-[#CDBBAD]/50 p-12 text-center">
-              <BookOpen size={48} className="mx-auto text-[#CDBBAD] mb-4" />
-              <p className="text-[#899581]">No tutorials found.</p>
-              <Link href="/tutorials" className="mt-3 inline-block text-[#5D1C34] text-sm hover:underline">Clear filters</Link>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5">
-              {items.map((tut: any) => <TutorialCard key={tut.id} tutorial={tut} />)}
-            </div>
-          )}
-
-          {totalPages > 1 && (
-            <PaginationLinks
-              currentPage={page}
-              totalPages={totalPages}
-              basePath="/tutorials"
-              params={params}
-              className="mt-8"
-            />
-          )}
+      {items.length === 0 ? (
+        <div className="bg-white rounded-xl border border-[#CDBBAD]/50 p-12 text-center">
+          <BookOpen size={48} className="mx-auto text-[#CDBBAD] mb-4" />
+          <p className="text-[#899581]">No tutorials found.</p>
+          <Link href="/tutorials" className="mt-3 inline-block text-[#5D1C34] text-sm hover:underline">
+            Clear filters
+          </Link>
         </div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+          {items.map((tut: any) => <TutorialCard key={tut.id} tutorial={tut} />)}
+        </div>
+      )}
 
-        <aside className="lg:w-64 flex-shrink-0">
-          <div className="bg-white rounded-xl border border-[#CDBBAD]/50 p-4">
-            <h2 className="font-semibold text-[#11100E] mb-3">Featured Tutorials</h2>
-            <div className="space-y-3">
-              {featured.map((tut: any) => (
-                <Link key={tut.id} href={`/tutorials/${tut.slug}`} className="block group">
-                  <p className="text-sm font-medium text-[#11100E] group-hover:text-[#5D1C34] line-clamp-2">{tut.title}</p>
-                  <p className="text-xs text-[#899581] mt-0.5">{tut.difficulty} · {tut.estimated_time}</p>
-                </Link>
-              ))}
-            </div>
-          </div>
-        </aside>
-      </div>
+      {totalPages > 1 && (
+        <PaginationLinks
+          currentPage={page}
+          totalPages={totalPages}
+          basePath="/tutorials"
+          params={params}
+          className="mt-8"
+        />
+      )}
     </div>
   );
 }

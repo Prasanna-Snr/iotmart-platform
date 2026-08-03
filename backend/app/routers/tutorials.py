@@ -109,6 +109,15 @@ async def update_tutorial(id: str, body: TutorialUpdate, db: AsyncSession = Depe
         raise HTTPException(status_code=404, detail="Tutorial not found")
     for field, value in body.model_dump(exclude_none=True).items():
         setattr(tutorial, field, value)
+    await db.flush()
+    # Re-fetch with relationship eagerly loaded so Pydantic doesn't trigger
+    # a lazy-load outside an async context.
+    result = await db.execute(
+        select(Tutorial)
+        .options(selectinload(Tutorial.category))
+        .where(Tutorial.id == tutorial.id)
+    )
+    tutorial = result.scalar_one()
     return TutorialOut.model_validate(tutorial)
 
 

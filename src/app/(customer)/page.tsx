@@ -20,14 +20,23 @@ export default function HomePage() {
     <>
       {/* Hero */}
       <section className="relative overflow-hidden bg-[#11100E] text-white">
-        <div className="absolute inset-0 bg-gradient-to-br from-[#5D1C34]/40 via-transparent to-[#A67D45]/20" />
+        {/* Background video */}
+        <video
+          autoPlay
+          loop
+          muted
+          playsInline
+          aria-hidden
+          className="absolute inset-0 w-full h-full object-cover opacity-30"
+        >
+          <source src="/bg-video.mp4" type="video/mp4" />
+        </video>
+        {/* Overlay gradient so text stays readable */}
+        <div className="absolute inset-0 bg-gradient-to-br from-[#11100E]/80 via-[#5D1C34]/30 to-[#11100E]/60" />
         <div className="container-custom relative py-20 md:py-28">
           <div className="max-w-2xl">
-            <span className="inline-flex items-center gap-1.5 bg-[#5D1C34]/30 border border-[#5D1C34]/50 text-[#CDBBAD] text-xs font-medium px-3 py-1 rounded-full mb-6">
-              <Zap size={11} /> 200+ IoT Components In Stock
-            </span>
-            <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold leading-tight mb-6">
-              Build the <span className="text-[#A67D45]">Future</span><br />with IoT
+            <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold leading-tight mb-6 text-white drop-shadow-sm">
+              Build the <span className="text-[#F0C060]">Future</span><br />with IoT
             </h1>
             <p className="text-lg text-[#899581] leading-relaxed mb-8 max-w-xl">
               Your one-stop shop for sensors, microcontrollers, development boards, and free step-by-step project tutorials.
@@ -41,9 +50,6 @@ export default function HomePage() {
               </Link>
             </div>
           </div>
-        </div>
-        <div className="absolute right-0 top-0 w-1/2 h-full opacity-10 hidden lg:block">
-          <Image src="https://images.unsplash.com/photo-1518770660439-4636190af475?w=800&q=60" alt="" fill className="object-cover" aria-hidden />
         </div>
       </section>
 
