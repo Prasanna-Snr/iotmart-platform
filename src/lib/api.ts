@@ -262,3 +262,28 @@ export const cmsApi = {
   delete: (id: string, token: string) =>
     apiFetch(`cms/pages/${id}`, { method: "DELETE", token }),
 };
+
+// ─── Analytics ────────────────────────────────────────────────────────────────
+
+export const analyticsApi = {
+  summary: (token: string): Promise<any> =>
+    apiFetch('analytics/summary', { token }),
+
+  dashboard: (token: string): Promise<any> =>
+    apiFetch('analytics/dashboard', { token }),
+
+  topPages: (token: string, limit = 10): Promise<any[]> =>
+    apiFetch(`analytics/top-pages?limit=${limit}`, { token }),
+
+  devices: (token: string): Promise<any[]> =>
+    apiFetch('analytics/devices', { token }),
+
+  browsers: (token: string): Promise<any[]> =>
+    apiFetch('analytics/browsers', { token }),
+
+  countries: (token: string): Promise<any[]> =>
+    apiFetch('analytics/countries', { token }),
+
+  trend: (token: string, days = 30): Promise<any[]> =>
+    apiFetch(`analytics/trend?days=${days}`, { token }),
+};

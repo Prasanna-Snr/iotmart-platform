@@ -8,18 +8,26 @@ import { categories } from "@/data/categories";
 import ProductCard from "@/components/product/ProductCard";
 import TutorialCard from "@/components/tutorial/TutorialCard";
 import HomeNewsletterForm from "@/components/ui/HomeNewsletterForm";
-import { SITE_NAME, SITE_DESCRIPTION } from "@/lib/constants";
+import { SITE_NAME, SITE_URL } from "@/lib/constants";
 
 export const metadata: Metadata = {
-  title: `${SITE_NAME} — IoT Gadgets, Sensors & Development Boards`,
-  description: SITE_DESCRIPTION,
+  title: `${SITE_NAME} — Buy IoT Hardware, Sensors & Dev Boards Nepal`,
+  description: 'IoTMart Nepal: Buy Arduino, ESP32, Raspberry Pi, sensors, robotics parts and IoT development boards online. 200+ products, free tutorials, fast shipping.',
+  alternates: { canonical: SITE_URL },
+  openGraph: {
+    title: `${SITE_NAME} — Buy IoT Hardware, Sensors & Dev Boards Nepal`,
+    description: 'IoTMart Nepal: Buy Arduino, ESP32, Raspberry Pi, sensors, robotics parts and IoT development boards online. 200+ products, free tutorials, fast shipping.',
+    url: SITE_URL,
+    type: 'website',
+    images: [{ url: `${SITE_URL}/og-default.png`, width: 1200, height: 630, alt: 'IoTMart — IoT Hardware Store Nepal' }],
+  },
 };
 
 export default function HomePage() {
   return (
     <>
       {/* Hero */}
-      <section className="relative overflow-hidden bg-[#11100E] text-white">
+      <section id="main-content" className="relative overflow-hidden bg-[#11100E] text-white">
         {/* Background video */}
         <video
           autoPlay
@@ -36,7 +44,7 @@ export default function HomePage() {
         <div className="container-custom relative py-20 md:py-28">
           <div className="max-w-2xl">
             <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold leading-tight mb-6 text-white drop-shadow-sm">
-              Build the <span className="text-[#F0C060]">Future</span><br />with IoT
+              Build IoT Projects with<br /><span className="text-[#F0C060]">Nepal's Best Hardware</span>
             </h1>
             <p className="text-lg text-[#899581] leading-relaxed mb-8 max-w-xl">
               Your one-stop shop for sensors, microcontrollers, development boards, and free step-by-step project tutorials.
@@ -106,7 +114,7 @@ export default function HomePage() {
           <div className="flex items-end justify-between mb-8">
             <div>
               <h2 className="text-2xl md:text-3xl font-bold text-[#11100E]">Featured Products</h2>
-              <p className="text-[#899581] mt-1">Hand-picked components for your projects</p>
+              <p className="text-[#899581] mt-1">Arduino, ESP32, Raspberry Pi &amp; more — hand-picked for makers</p>
             </div>
             <Link href="/products" className="hidden sm:flex items-center gap-1 text-sm font-medium text-[#5D1C34] hover:underline">
               View All <ArrowRight size={14} />

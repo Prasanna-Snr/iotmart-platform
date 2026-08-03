@@ -10,7 +10,12 @@ import StarRating from "@/components/ui/StarRating";
 import Badge from "@/components/ui/Badge";
 import Breadcrumb from "@/components/ui/Breadcrumb";
 import { formatPrice, calculateDiscount, formatDateShort } from "@/lib/utils";
-import { generateProductMetadata, productJsonLd } from "@/lib/seo";
+import {
+  generateProductMetadata,
+  productJsonLd,
+  breadcrumbJsonLd,
+  jsonLdString,
+} from "@/lib/seo";
 import WriteReviewForm from "@/components/product/WriteReviewForm";
 
 interface PageProps {
@@ -100,15 +105,24 @@ export default async function ProductDetailPage({ params }: PageProps) {
   }
 
   const jsonLd = productJsonLd(product as any);
+  const crumbJsonLd = breadcrumbJsonLd([
+    { label: "Products", href: "/products" },
+    { label: product.category.name, href: `/products?category=${product.category.slug}` },
+    { label: product.name },
+  ]);
 
   return (
     <>
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        dangerouslySetInnerHTML={{ __html: jsonLdString(jsonLd) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: jsonLdString(crumbJsonLd) }}
       />
 
-      <div className="container-custom py-8">
+      <div id="main-content" className="container-custom py-8">
         {/* Breadcrumb */}
         <Breadcrumb
           items={[

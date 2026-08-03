@@ -1,15 +1,19 @@
-import type { Metadata } from "next";
 import Link from "next/link";
 import { BookOpen } from "lucide-react";
 import { tutorialsApi } from "@/lib/api";
 import TutorialCard from "@/components/tutorial/TutorialCard";
 import PaginationLinks from "@/components/ui/PaginationLinks";
 import { DIFFICULTY_COLORS } from "@/lib/constants";
+import { generatePageMetadata, tutorialListJsonLd, jsonLdString } from "@/lib/seo";
 
-export const metadata: Metadata = {
-  title: "IoT Project Tutorials",
-  description: "Free step-by-step IoT project tutorials for beginners to advanced makers.",
-};
+export const metadata = generatePageMetadata(
+  "Free IoT Project Tutorials — Arduino, ESP32, Raspberry Pi | IoTMart",
+  {
+    description:
+      "Step-by-step IoT project tutorials for all skill levels. Learn to build with Arduino, ESP32, Raspberry Pi, sensors and more. Free tutorials for makers in Nepal.",
+    path: "/tutorials",
+  }
+);
 
 interface PageProps { searchParams: Promise<Record<string, string>> }
 
@@ -34,7 +38,16 @@ export default async function TutorialsPage({ searchParams }: PageProps) {
   const totalPages = Math.ceil(total / PAGE_SIZE);
 
   return (
-    <div className="container-custom py-8">
+    <>
+      {items.length > 0 && (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: jsonLdString(tutorialListJsonLd(items)),
+          }}
+        />
+      )}
+      <div id="main-content" className="container-custom py-8">
       <div className="text-center mb-10">
         <span className="inline-flex items-center gap-2 bg-[#5D1C34]/10 text-[#5D1C34] text-sm font-medium px-3 py-1 rounded-full mb-3">
           <BookOpen size={14} /> Free Tutorials
@@ -106,5 +119,6 @@ export default async function TutorialsPage({ searchParams }: PageProps) {
         />
       )}
     </div>
+    </>
   );
 }

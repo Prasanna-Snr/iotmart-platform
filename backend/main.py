@@ -9,7 +9,7 @@ from slowapi.errors import RateLimitExceeded
 
 from app.database import engine, Base
 from app.limiter import limiter
-from app.routers import auth, users, categories, brands, products, tutorials, orders, cms, upload, reviews, settings, contact
+from app.routers import auth, users, categories, brands, products, tutorials, orders, cms, upload, reviews, settings, contact, analytics
 
 
 @asynccontextmanager
@@ -56,6 +56,7 @@ app.include_router(upload.router,     prefix="/api/upload",    tags=["Upload"])
 app.include_router(reviews.router,    prefix="/api/reviews",   tags=["Reviews"])
 app.include_router(settings.router,   prefix="/api/settings",  tags=["Settings"])
 app.include_router(contact.router,    prefix="/api/contact",   tags=["Contact"])
+app.include_router(analytics.router,  prefix="/api/analytics", tags=["Analytics"])
 
 # Serve uploaded files at /uploads/*
 UPLOAD_DIR = os.path.join(os.path.dirname(__file__), "public", "uploads")

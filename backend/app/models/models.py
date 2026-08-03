@@ -272,3 +272,42 @@ class Banner(Base):
     active:     Mapped[bool]      = mapped_column(Boolean, default=True)
     order:      Mapped[int]       = mapped_column(Integer, default=0)
     created_at: Mapped[datetime]  = mapped_column(DateTime(timezone=True), default=utcnow)
+
+
+# ─── Analytics ────────────────────────────────────────────────────────────────
+
+class PageView(Base):
+    """One record per page view. IP is hashed, never stored raw."""
+    __tablename__ = "page_views"
+
+    id:           Mapped[uuid.UUID]  = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    visitor_id:   Mapped[str]        = mapped_column(String(64), nullable=False, index=True)   # anonymous stable ID
+    session_id:   Mapped[str]        = mapped_column(String(64), nullable=False, index=True)
+    ip_hash:      Mapped[str]        = mapped_column(String(64), nullable=False)               # SHA-256 of IP
+    path:         Mapped[str]        = mapped_column(String(2048), nullable=False, index=True)
+    referrer:     Mapped[str | None] = mapped_column(Text, nullable=True)
+    user_agent:   Mapped[str | None] = mapped_column(Text, nullable=True)
+    browser:      Mapped[str | None] = mapped_column(String(100), nullable=True)
+    browser_version: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    os:           Mapped[str | None] = mapped_column(String(100), nullable=True)
+    device_type:  Mapped[str | None] = mapped_column(String(50), nullable=True)   # desktop/mobile/tablet/bot
+    country:      Mapped[str | None] = mapped_column(String(100), nullable=True)
+    city:         Mapped[str | None] = mapped_column(String(100), nullable=True)
+    duration_ms:  Mapped[int | None] = mapped_column(Integer, nullable=True)      # set on session end
+    created_at:   Mapped[datetime]   = mapped_column(DateTime(timezone=True), default=utcnow, index=True)
+
+    __table_args__ = (
+        # fast daily aggregations
+        # index on (created_at, visitor_id) for unique-visitor queries
+    )
+
+
+class OnlineVisitor(Base):
+    """Tracks currently active visitors (TTL-based heartbeat)."""
+    __tablename__ = "online_visitors"
+
+    session_id:   Mapped[str]       = mapped_column(String(64), primary_key=True)
+    visitor_id:   Mapped[str]       = mapped_column(String(64), nullable=False, index=True)
+    path:         Mapped[str]       = mapped_column(String(2048), nullable=False)
+    last_seen:    Mapped[datetime]  = mapped_column(DateTime(timezone=True), default=utcnow, onupdate=utcnow, index=True)
+    created_at:   Mapped[datetime]  = mapped_column(DateTime(timezone=True), default=utcnow)
