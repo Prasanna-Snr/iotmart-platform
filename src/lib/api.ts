@@ -43,7 +43,16 @@ async function apiFetch<T>(
 // ─── Auth ────────────────────────────────────────────────────────────────────
 
 export const authApi = {
-  register: (body: { name: string; email: string; password: string }) =>
+  /** Step 1: request an OTP for the given email. */
+  requestOtp: (body: { email: string }): Promise<{ message: string; dev_otp?: string }> =>
+    apiFetch("auth/request-otp", { method: "POST", body: JSON.stringify(body) }),
+
+  /** Step 2: verify the OTP — returns a short-lived verification_token. */
+  verifyOtp: (body: { email: string; otp: string }): Promise<{ verification_token: string; email: string }> =>
+    apiFetch("auth/verify-otp", { method: "POST", body: JSON.stringify(body) }),
+
+  /** Step 3: complete registration using the verification_token from step 2. */
+  register: (body: { name: string; email: string; password: string; verification_token: string }) =>
     apiFetch("auth/register", { method: "POST", body: JSON.stringify(body) }),
 
   login: (body: { email: string; password: string }) =>

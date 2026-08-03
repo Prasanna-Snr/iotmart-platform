@@ -15,6 +15,21 @@ class Settings(BaseSettings):
     # App
     debug: bool = False
     environment: str = "development"
+    site_name: str = "IoTMart"
+
+    # ─── Email / SMTP ─────────────────────────────────────────────────────────
+    # Leave smtp_host empty to use console/log fallback (development mode).
+    smtp_host: str = ""
+    smtp_port: int = 587
+    smtp_username: str = ""
+    smtp_password: str = ""
+    smtp_from_email: str = "noreply@iotmart.com"
+    smtp_use_tls: bool = False       # True = SMTP_SSL (port 465)
+    smtp_tls_starttls: bool = True   # True = STARTTLS on plain connection (port 587)
+
+    # ─── OTP settings ─────────────────────────────────────────────────────────
+    otp_expire_minutes: int = 5
+    otp_max_attempts: int = 5
 
     class Config:
         env_file = "../.env"
