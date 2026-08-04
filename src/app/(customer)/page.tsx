@@ -2,9 +2,6 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import Image from "next/image";
 import { Cpu, BookOpen, Package, Users, Truck, ArrowRight, Star, Zap, Shield } from "lucide-react";
-import { featuredProducts } from "@/data/products";
-import { featuredTutorials } from "@/data/tutorials";
-import { categories } from "@/data/categories";
 import ProductCard from "@/components/product/ProductCard";
 import TutorialCard from "@/components/tutorial/TutorialCard";
 import HomeNewsletterForm from "@/components/ui/HomeNewsletterForm";
@@ -23,7 +20,21 @@ export const metadata: Metadata = {
   },
 };
 
-export default function HomePage() {
+export default async function HomePage() {
+  const apiBase = process.env.API_INTERNAL_URL ?? "http://localhost:8000";
+
+  // Fetch real categories, featured products, and featured tutorials in parallel
+  const [categories, featuredProducts, featuredTutorials] = await Promise.all([
+    fetch(`${apiBase}/api/categories`, { next: { revalidate: 60 } })
+      .then((r) => r.ok ? r.json() : [])
+      .catch(() => []),
+    fetch(`${apiBase}/api/products?featured=true&page_size=8`, { next: { revalidate: 60 } })
+      .then((r) => r.ok ? r.json().then((d: any) => d.items ?? []) : [])
+      .catch(() => []),
+    fetch(`${apiBase}/api/tutorials?featured=true&published=true&page_size=3`, { next: { revalidate: 60 } })
+      .then((r) => r.ok ? r.json().then((d: any) => d.items ?? []) : [])
+      .catch(() => []),
+  ]);
   return (
     <>
       {/* Hero */}
@@ -84,31 +95,45 @@ export default function HomePage() {
       </section>
 
       {/* Categories */}
+      {categories.length > 0 && (
       <section className="container-custom py-14">
         <div className="flex items-end justify-between mb-8">
           <div>
             <h2 className="text-2xl md:text-3xl font-bold text-[#11100E]">Shop by Category</h2>
-            <p className="text-[#899581] mt-1">Everything you need for your IoT projects</p>
+            <p className="text-[#899581] mt-1">Everything you need for your IoT & Robotics projects</p>
           </div>
           <Link href="/products" className="hidden sm:flex items-center gap-1 text-sm font-medium text-[#5D1C34] hover:underline">
             All Products <ArrowRight size={14} />
           </Link>
         </div>
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-          {categories.map((cat) => (
+          {categories.slice(0, 8).map((cat: any) => (
             <Link key={cat.id} href={`/products?category=${cat.slug}`}
               className="group relative overflow-hidden rounded-xl bg-[#11100E] aspect-square">
-              <Image src={cat.image} alt={cat.name} fill className="object-cover opacity-60 group-hover:opacity-80 transition-opacity group-hover:scale-105 transition-transform duration-300" />
+              {cat.image ? (
+                <Image
+                  src={cat.image}
+                  alt={cat.name}
+                  fill
+                  className="object-cover opacity-60 group-hover:opacity-80 transition-opacity group-hover:scale-105 transition-transform duration-300"
+                />
+              ) : (
+                <div className="absolute inset-0 bg-gradient-to-br from-[#5D1C34]/60 to-[#11100E]" />
+              )}
               <div className="absolute inset-0 flex flex-col justify-end p-4">
                 <h3 className="text-white font-semibold text-sm">{cat.name}</h3>
-                <p className="text-[#CDBBAD]/70 text-xs">{cat.productCount} items</p>
+                {cat.description && (
+                  <p className="text-[#CDBBAD]/70 text-xs line-clamp-1 mt-0.5">{cat.description}</p>
+                )}
               </div>
             </Link>
           ))}
         </div>
       </section>
+      )}
 
       {/* Featured Products */}
+      {featuredProducts.length > 0 && (
       <section className="bg-white py-14">
         <div className="container-custom">
           <div className="flex items-end justify-between mb-8">
@@ -121,12 +146,14 @@ export default function HomePage() {
             </Link>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5">
-            {featuredProducts.map((product) => <ProductCard key={product.id} product={product} />)}
+            {featuredProducts.map((product: any) => <ProductCard key={product.id} product={product} />)}
           </div>
         </div>
       </section>
+      )}
 
       {/* Tutorials */}
+      {featuredTutorials.length > 0 && (
       <section className="container-custom py-14">
         <div className="flex items-end justify-between mb-8">
           <div>
@@ -138,9 +165,10 @@ export default function HomePage() {
           </Link>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-          {featuredTutorials.map((tut) => <TutorialCard key={tut.id} tutorial={tut} />)}
+          {featuredTutorials.map((tut: any) => <TutorialCard key={tut.id} tutorial={tut} />)}
         </div>
       </section>
+      )}
 
       {/* Why Choose Us */}
       <section className="bg-[#5D1C34]/5 border-y border-[#CDBBAD]/30 py-14">
