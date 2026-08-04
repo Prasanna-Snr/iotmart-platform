@@ -175,6 +175,8 @@ export const ordersApi = {
     apiFetch(`orders/${id}`, { token }),
   create: (body: any, token: string) =>
     apiFetch("orders", { method: "POST", body: JSON.stringify(body), token }),
+  cancel: (id: string, token: string): Promise<any> =>
+    apiFetch(`orders/${id}/cancel`, { method: "PATCH", token }),
   updateStatus: (id: string, status: string, token: string) =>
     apiFetch(`orders/${id}/status`, { method: "PATCH", body: JSON.stringify({ status }), token }),
 };

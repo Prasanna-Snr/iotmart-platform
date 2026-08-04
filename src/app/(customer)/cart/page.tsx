@@ -7,20 +7,20 @@ import { useCart } from "@/context/CartContext";
 import {
   formatPrice,
   calculateShipping,
-  calculateTax,
   calculateTotal,
 } from "@/lib/utils";
-import { FREE_SHIPPING_THRESHOLD, SHIPPING_COST } from "@/lib/constants";
+import { useStoreSettings } from "@/hooks/useStoreSettings";
 
 export default function CartPage() {
   const { items, removeFromCart, updateQuantity, subtotal, totalItems } =
     useCart();
+  const { settings } = useStoreSettings();
+  const { freeShippingThreshold, shippingCost } = settings;
 
-  const shipping = calculateShipping(subtotal);
-  const tax = calculateTax(subtotal);
-  const total = calculateTotal(subtotal);
+  const shipping = calculateShipping(subtotal, freeShippingThreshold, shippingCost);
+  const total = calculateTotal(subtotal, freeShippingThreshold, shippingCost);
   const shippingProgress = Math.min(
-    (subtotal / FREE_SHIPPING_THRESHOLD) * 100,
+    (subtotal / freeShippingThreshold) * 100,
     100
   );
 
@@ -54,12 +54,12 @@ export default function CartPage() {
         {/* Cart items */}
         <div className="lg:col-span-2 space-y-4">
           {/* Free shipping progress */}
-          {subtotal < FREE_SHIPPING_THRESHOLD && (
+          {subtotal < freeShippingThreshold && (
             <div className="bg-white rounded-xl border border-[#CDBBAD]/50 p-4">
               <p className="text-sm text-[#899581] mb-2">
                 Add{" "}
                 <strong className="text-[#11100E]">
-                  {formatPrice(FREE_SHIPPING_THRESHOLD - subtotal)}
+                  {formatPrice(freeShippingThreshold - subtotal)}
                 </strong>{" "}
                 more for free shipping!
               </p>
@@ -165,10 +165,6 @@ export default function CartPage() {
                 <dd className={shipping === 0 ? "text-green-600 font-medium" : "font-medium"}>
                   {shipping === 0 ? "Free" : formatPrice(shipping)}
                 </dd>
-              </div>
-              <div className="flex justify-between">
-                <dt className="text-[#899581]">Tax (8%)</dt>
-                <dd className="font-medium">{formatPrice(tax)}</dd>
               </div>
               <div className="h-px bg-[#F0E9E3] my-1" />
               <div className="flex justify-between text-base">

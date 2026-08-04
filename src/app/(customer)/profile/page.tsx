@@ -93,7 +93,7 @@ export default function ProfilePage() {
     .slice(0, 2) || "?";
 
   const activeOrders = orders.filter((o) =>
-    ["pending", "processing", "shipped"].includes(o.status)
+    ["pending", "processing"].includes(o.status)
   ).length;
 
   return (
@@ -139,6 +139,10 @@ export default function ProfilePage() {
                 orders={orders}
                 loading={ordersLoading}
                 error={ordersError}
+                token={token}
+                onOrderCancelled={(updated) =>
+                  setOrders((prev) => prev.map((o) => (o.id === updated.id ? updated : o)))
+                }
               />
             </div>
           )}

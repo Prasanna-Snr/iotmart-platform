@@ -7,7 +7,6 @@ export const SITE_DESCRIPTION =
 
 export const CURRENCY = "NPR";
 export const CURRENCY_SYMBOL = "Rs. ";
-export const TAX_RATE = 0.08; // 8%
 export const FREE_SHIPPING_THRESHOLD = 50;
 export const SHIPPING_COST = 5.99;
 export const ITEMS_PER_PAGE = 12;
@@ -39,10 +38,8 @@ export const DIFFICULTY_COLORS: Record<string, string> = {
 export const ORDER_STATUS_COLORS: Record<string, string> = {
   pending: "bg-amber-100 text-amber-800",
   processing: "bg-blue-100 text-blue-800",
-  shipped: "bg-purple-100 text-purple-800",
   delivered: "bg-green-100 text-green-800",
   cancelled: "bg-red-100 text-red-800",
-  refunded: "bg-gray-100 text-gray-800",
 };
 
 export const PAYMENT_STATUS_COLORS: Record<string, string> = {

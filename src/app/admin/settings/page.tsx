@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import {
-  Store, Truck, CreditCard, Bell, Shield, CheckCircle, Loader2,
+  Store, Truck, Bell, Shield, CheckCircle, Loader2,
 } from "lucide-react";
 import Input from "@/components/ui/Input";
 import Textarea from "@/components/ui/Textarea";
@@ -10,14 +10,13 @@ import { settingsApi, authApi } from "@/lib/api";
 import { getAdminToken } from "@/lib/adminAuth";
 import { useAdminAuth } from "@/lib/adminAuth";
 
-type Tab = "store" | "shipping" | "tax" | "notifications" | "security";
+type Tab = "store" | "shipping" | "notifications" | "security";
 
 const TABS: { key: Tab; label: string; icon: React.ElementType }[] = [
-  { key: "store",         label: "Store",         icon: Store      },
-  { key: "shipping",      label: "Shipping",       icon: Truck      },
-  { key: "tax",           label: "Tax & Payments", icon: CreditCard },
-  { key: "notifications", label: "Notifications",  icon: Bell       },
-  { key: "security",      label: "Security",       icon: Shield     },
+  { key: "store",         label: "Store",        icon: Store      },
+  { key: "shipping",      label: "Shipping",      icon: Truck      },
+  { key: "notifications", label: "Notifications", icon: Bell       },
+  { key: "security",      label: "Security",      icon: Shield     },
 ];
 
 export default function AdminSettingsPage() {
@@ -248,31 +247,6 @@ export default function AdminSettingsPage() {
           <div className="bg-[#F0E9E3]/60 rounded-lg p-4 text-xs text-[#899581]">
             Orders over <strong className="text-[#11100E]">Rs. {val("shipping_free_threshold", "50")}</strong> qualify
             for free shipping. All others are charged <strong className="text-[#11100E]">Rs. {val("shipping_default_cost", "5.99")}</strong>.
-          </div>
-        </div>
-      )}
-
-      {/* ── Tax ──────────────────────────────────────────────────── */}
-      {tab === "tax" && (
-        <div className="bg-white rounded-xl border border-[#CDBBAD]/50 p-6 space-y-4">
-          <h2 className="font-semibold text-[#11100E] mb-2">Tax & Payments</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <Input
-              label="Tax Rate (%)"
-              type="number"
-              value={val("tax_rate", "8")}
-              onChange={(e) => set("tax_rate", e.target.value)}
-            />
-            <Input
-              label="Tax ID / VAT Number"
-              value={val("tax_id")}
-              onChange={(e) => set("tax_id", e.target.value)}
-              placeholder="Optional"
-            />
-          </div>
-          <div className="bg-[#F0E9E3]/60 rounded-lg p-4 text-xs text-[#899581]">
-            Tax rate of <strong className="text-[#11100E]">{val("tax_rate", "8")}%</strong> is applied
-            to all orders at checkout.
           </div>
         </div>
       )}

@@ -3,9 +3,10 @@
 import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { Package, ChevronDown, ChevronUp } from "lucide-react";
+import { Package, ChevronDown, ChevronUp, X } from "lucide-react";
 import { formatDateShort, formatPrice } from "@/lib/utils";
 import { ORDER_STATUS_COLORS, PAYMENT_STATUS_COLORS } from "@/lib/constants";
+import { ordersApi } from "@/lib/api";
 
 interface OrderItem {
   product_name: string;
@@ -23,7 +24,6 @@ interface Order {
   payment_method: string;
   subtotal: number;
   shipping_cost: number;
-  tax: number;
   total: number;
   items: OrderItem[];
   shipping_address: { city?: string; state?: string; addressLine1?: string };
@@ -34,10 +34,27 @@ interface Props {
   orders: Order[];
   loading: boolean;
   error: string;
+  token: string;
+  onOrderCancelled: (updatedOrder: Order) => void;
 }
 
-export default function OrderHistoryPanel({ orders, loading, error }: Props) {
-  const [expandedId, setExpandedId] = useState<string | null>(null);
+export default function OrderHistoryPanel({ orders, loading, error, token, onOrderCancelled }: Props) {
+  const [expandedId, setExpandedId]     = useState<string | null>(null);
+  const [cancellingId, setCancellingId] = useState<string | null>(null);
+  const [cancelError, setCancelError]   = useState<Record<string, string>>({});
+
+  const handleCancel = async (orderId: string) => {
+    setCancellingId(orderId);
+    setCancelError((prev) => ({ ...prev, [orderId]: "" }));
+    try {
+      const updated = await ordersApi.cancel(orderId, token);
+      onOrderCancelled(updated);
+    } catch (e: any) {
+      setCancelError((prev) => ({ ...prev, [orderId]: e.message ?? "Failed to cancel order." }));
+    } finally {
+      setCancellingId(null);
+    }
+  };
 
   if (loading) {
     return (
@@ -149,12 +166,10 @@ export default function OrderHistoryPanel({ orders, loading, error }: Props) {
                 <div>
                   <p className="text-xs text-[#899581] mb-1">Shipping</p>
                   <p className="font-medium text-[#11100E]">
-                    {order.shipping_cost === 0 ? <span className="text-green-600">Free</span> : formatPrice(order.shipping_cost)}
+                    {order.shipping_cost === 0
+                      ? <span className="text-green-600">Free</span>
+                      : formatPrice(order.shipping_cost)}
                   </p>
-                </div>
-                <div>
-                  <p className="text-xs text-[#899581] mb-1">Tax</p>
-                  <p className="font-medium text-[#11100E]">{formatPrice(order.tax)}</p>
                 </div>
                 <div>
                   <p className="text-xs text-[#899581] mb-1">Total</p>
@@ -162,9 +177,13 @@ export default function OrderHistoryPanel({ orders, loading, error }: Props) {
                 </div>
                 <div>
                   <p className="text-xs text-[#899581] mb-1">Payment</p>
-                  <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium capitalize ${PAYMENT_STATUS_COLORS[order.payment_status] ?? "bg-gray-100 text-gray-600"}`}>
-                    {order.payment_status}
-                  </span>
+                  {order.status === "delivered" ? (
+                    <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium capitalize ${PAYMENT_STATUS_COLORS["paid"]}`}>
+                      paid
+                    </span>
+                  ) : (
+                    <span className="text-xs text-[#899581]">—</span>
+                  )}
                 </div>
                 {order.shipping_address?.city && (
                   <div>
@@ -175,6 +194,23 @@ export default function OrderHistoryPanel({ orders, loading, error }: Props) {
                   </div>
                 )}
               </div>
+
+              {/* Cancel button — only for pending orders */}
+              {order.status === "pending" && (
+                <div className="border-t border-[#F0E9E3] px-5 py-4">
+                  {cancelError[order.id] && (
+                    <p className="text-xs text-red-500 mb-2">{cancelError[order.id]}</p>
+                  )}
+                  <button
+                    onClick={() => handleCancel(order.id)}
+                    disabled={cancellingId === order.id}
+                    className="flex items-center gap-1.5 px-4 py-2 rounded-lg border border-red-200 text-red-600 text-sm font-medium hover:bg-red-50 disabled:opacity-50 transition-colors"
+                  >
+                    <X size={14} />
+                    {cancellingId === order.id ? "Cancelling…" : "Cancel Order"}
+                  </button>
+                </div>
+              )}
             </div>
           )}
         </div>

@@ -9,55 +9,51 @@ import { useRouter } from "next/navigation";
 import { Check, ChevronRight } from "lucide-react";
 import { useCart } from "@/context/CartContext";
 import { useCustomerAuth } from "@/lib/customerAuth";
-import { ordersApi } from "@/lib/api";
+import { ordersApi, authApi } from "@/lib/api";
 import Input from "@/components/ui/Input";
 import {
   formatPrice,
   calculateShipping,
-  calculateTax,
   calculateTotal,
-  isValidEmail,
 } from "@/lib/utils";
+import { useStoreSettings } from "@/hooks/useStoreSettings";
 
 type Step = 1 | 2 | 3;
 
 interface ShippingForm {
   firstName: string;
   lastName: string;
-  email: string;
   phone: string;
   addressLine1: string;
   addressLine2: string;
   city: string;
   state: string;
-  zipCode: string;
-  country: string;
 }
 
 const initialShipping: ShippingForm = {
   firstName: "",
   lastName: "",
-  email: "",
   phone: "",
   addressLine1: "",
   addressLine2: "",
   city: "",
   state: "",
-  zipCode: "",
-  country: "US",
 };
 
 export default function CheckoutPage() {
   const router = useRouter();
   const { token, ready } = useCustomerAuth();
   const { items, subtotal, clearCart } = useCart();
+  const { settings } = useStoreSettings();
+  const { freeShippingThreshold, shippingCost: defaultShippingCost } = settings;
   const [step, setStep] = useState<Step>(1);
   const [shipping, setShipping] = useState<ShippingForm>(initialShipping);
   const [errors, setErrors] = useState<Partial<ShippingForm>>({});
-  const [paymentMethod, setPaymentMethod] = useState<"card" | "paypal">("card");
+  const paymentMethod = "cod";
   const [orderNumber, setOrderNumber] = useState("");
   const [orderError, setOrderError] = useState("");
   const [placingOrder, setPlacingOrder] = useState(false);
+  const [userEmail, setUserEmail] = useState("");
 
   // Redirect to login if not authenticated
   useEffect(() => {
@@ -66,21 +62,24 @@ export default function CheckoutPage() {
     }
   }, [ready, token, router]);
 
-  const shippingCost = calculateShipping(subtotal);
-  const tax = calculateTax(subtotal);
-  const total = calculateTotal(subtotal);
+  // Fetch logged-in user's email
+  useEffect(() => {
+    if (token) {
+      authApi.me(token).then((u: any) => setUserEmail(u.email ?? "")).catch(() => {});
+    }
+  }, [token]);
+
+  const shippingCost = calculateShipping(subtotal, freeShippingThreshold, defaultShippingCost);
+  const total = calculateTotal(subtotal, freeShippingThreshold, defaultShippingCost);
 
   const validateStep1 = () => {
     const e: Partial<ShippingForm> = {};
     if (!shipping.firstName.trim()) e.firstName = "First name is required";
     if (!shipping.lastName.trim()) e.lastName = "Last name is required";
-    if (!shipping.email.trim()) e.email = "Email is required";
-    else if (!isValidEmail(shipping.email)) e.email = "Invalid email";
     if (!shipping.phone.trim()) e.phone = "Phone is required";
     if (!shipping.addressLine1.trim()) e.addressLine1 = "Address is required";
     if (!shipping.city.trim()) e.city = "City is required";
     if (!shipping.state.trim()) e.state = "State is required";
-    if (!shipping.zipCode.trim()) e.zipCode = "ZIP code is required";
     setErrors(e);
     return Object.keys(e).length === 0;
   };
@@ -105,16 +104,13 @@ export default function CheckoutPage() {
           subtotal:      Math.round(product.price * quantity * 100) / 100,
         })),
         shipping_address: {
-          first_name:   shipping.firstName,
-          last_name:    shipping.lastName,
-          email:        shipping.email,
-          phone:        shipping.phone,
+          first_name:    shipping.firstName,
+          last_name:     shipping.lastName,
+          phone:         shipping.phone,
           address_line1: shipping.addressLine1,
           address_line2: shipping.addressLine2,
-          city:         shipping.city,
-          state:        shipping.state,
-          zip_code:     shipping.zipCode,
-          country:      shipping.country,
+          city:          shipping.city,
+          state:         shipping.state,
         },
         payment_method: paymentMethod,
       };
@@ -136,7 +132,7 @@ export default function CheckoutPage() {
     error: errors[key],
   });
 
-  const steps = ["Shipping", "Payment", "Confirmation"];
+  const steps = ["Shipping", "Review", "Confirmation"];
 
   // Still reading localStorage — don't render yet
   if (!ready || !token) {
@@ -193,7 +189,6 @@ export default function CheckoutPage() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <Input label="First Name" required {...field("firstName")} />
                   <Input label="Last Name" required {...field("lastName")} />
-                  <Input label="Email" type="email" required {...field("email")} />
                   <Input label="Phone" type="tel" required {...field("phone")} />
                   <div className="sm:col-span-2">
                     <Input label="Address" required {...field("addressLine1")} />
@@ -206,8 +201,6 @@ export default function CheckoutPage() {
                   </div>
                   <Input label="City" required {...field("city")} />
                   <Input label="State / Province" required {...field("state")} />
-                  <Input label="ZIP Code" required {...field("zipCode")} />
-                  <Input label="Country" required {...field("country")} />
                 </div>
                 <button
                   type="submit"
@@ -223,51 +216,37 @@ export default function CheckoutPage() {
             <form onSubmit={handleStep2Submit}>
               <div className="bg-white rounded-xl border border-[#CDBBAD]/50 p-6">
                 <h2 className="text-lg font-bold text-[#11100E] mb-5">
-                  Payment Method
+                  Review &amp; Place Order
                 </h2>
-                <div className="space-y-3 mb-6">
-                  {[
-                    { value: "card", label: "Credit / Debit Card" },
-                    { value: "paypal", label: "PayPal" },
-                  ].map((m) => (
-                    <label
-                      key={m.value}
-                      className={`flex items-center gap-3 p-4 border rounded-xl cursor-pointer transition-colors ${
-                        paymentMethod === m.value
-                          ? "border-[#5D1C34] bg-[#5D1C34]/5"
-                          : "border-[#CDBBAD] hover:border-[#A67D45]"
-                      }`}
-                    >
-                      <input
-                        type="radio"
-                        name="payment"
-                        value={m.value}
-                        checked={paymentMethod === m.value}
-                        onChange={() =>
-                          setPaymentMethod(m.value as "card" | "paypal")
-                        }
-                        className="accent-[#5D1C34]"
-                      />
-                      <span className="font-medium text-sm">{m.label}</span>
-                    </label>
-                  ))}
+
+                {/* COD notice */}
+                <div className="flex items-start gap-3 p-4 rounded-xl bg-[#F0E9E3] border border-[#CDBBAD]/60 mb-6">
+                  <div className="w-8 h-8 rounded-full bg-[#5D1C34]/10 flex items-center justify-center flex-shrink-0 mt-0.5">
+                    <span className="text-[#5D1C34] text-sm font-bold">₵</span>
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-[#11100E]">Cash on Delivery</p>
+                    <p className="text-xs text-[#899581] mt-0.5">
+                      Pay in cash when your order arrives. No payment required now.
+                    </p>
+                  </div>
                 </div>
 
-                {paymentMethod === "card" && (
-                  <div className="space-y-4">
-                    <Input
-                      label="Card Number"
-                      placeholder="1234 5678 9012 3456"
-                    />
-                    <div className="grid grid-cols-2 gap-4">
-                      <Input label="Expiry Date" placeholder="MM / YY" />
-                      <Input label="CVV" placeholder="•••" />
-                    </div>
-                    <Input label="Name on Card" placeholder="Full name" />
-                  </div>
-                )}
+                {/* Shipping summary */}
+                <div className="rounded-xl border border-[#CDBBAD]/50 p-4 mb-6">
+                  <p className="text-xs font-semibold text-[#899581] uppercase tracking-wide mb-2">Delivering to</p>
+                  <p className="text-sm text-[#11100E] font-medium">
+                    {shipping.firstName} {shipping.lastName}
+                  </p>
+                  <p className="text-xs text-[#899581] mt-0.5">
+                    {shipping.addressLine1}
+                    {shipping.addressLine2 ? `, ${shipping.addressLine2}` : ""},{" "}
+                    {shipping.city}, {shipping.state}
+                  </p>
+                  <p className="text-xs text-[#899581]">{shipping.phone}</p>
+                </div>
 
-                <div className="flex gap-3 mt-6">
+                <div className="flex gap-3">
                   <button
                     type="button"
                     onClick={() => setStep(1)}
@@ -309,7 +288,7 @@ export default function CheckoutPage() {
               </p>
               <p className="text-sm text-[#899581] mb-8">
                 A confirmation has been sent to{" "}
-                <strong>{shipping.email}</strong>.
+                <strong>{userEmail}</strong>.
               </p>
               <Link
                 href="/products"
@@ -373,10 +352,6 @@ export default function CheckoutPage() {
                   <span className={shippingCost === 0 ? "text-green-600" : ""}>
                     {shippingCost === 0 ? "Free" : formatPrice(shippingCost)}
                   </span>
-                </div>
-                <div className="flex justify-between text-[#899581]">
-                  <span>Tax</span>
-                  <span>{formatPrice(tax)}</span>
                 </div>
                 <div className="flex justify-between font-bold text-[#11100E] text-base pt-1">
                   <span>Total</span>

@@ -3,7 +3,6 @@ import { twMerge } from "tailwind-merge";
 import {
   CURRENCY_SYMBOL,
   SHIPPING_COST,
-  TAX_RATE,
   FREE_SHIPPING_THRESHOLD,
 } from "./constants";
 
@@ -35,18 +34,21 @@ export function calculateSubtotal(
   return items.reduce((sum, item) => sum + item.price * item.quantity, 0);
 }
 
-export function calculateShipping(subtotal: number): number {
-  return subtotal >= FREE_SHIPPING_THRESHOLD ? 0 : SHIPPING_COST;
+export function calculateShipping(
+  subtotal: number,
+  freeShippingThreshold = FREE_SHIPPING_THRESHOLD,
+  shippingCost = SHIPPING_COST
+): number {
+  return subtotal >= freeShippingThreshold ? 0 : shippingCost;
 }
 
-export function calculateTax(subtotal: number): number {
-  return parseFloat((subtotal * TAX_RATE).toFixed(2));
-}
-
-export function calculateTotal(subtotal: number): number {
-  const shipping = calculateShipping(subtotal);
-  const tax = calculateTax(subtotal);
-  return parseFloat((subtotal + shipping + tax).toFixed(2));
+export function calculateTotal(
+  subtotal: number,
+  freeShippingThreshold = FREE_SHIPPING_THRESHOLD,
+  shippingCost = SHIPPING_COST
+): number {
+  const shipping = calculateShipping(subtotal, freeShippingThreshold, shippingCost);
+  return parseFloat((subtotal + shipping).toFixed(2));
 }
 
 // ─── Slug & String Utilities ──────────────────────────────────────────────────

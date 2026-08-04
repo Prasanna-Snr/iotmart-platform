@@ -11,7 +11,6 @@ const STATUS_TABS = [
   { label: "All",        value: "" },
   { label: "Pending",    value: "pending" },
   { label: "Processing", value: "processing" },
-  { label: "Shipped",    value: "shipped" },
   { label: "Delivered",  value: "delivered" },
   { label: "Cancelled",  value: "cancelled" },
 ];
@@ -42,7 +41,7 @@ export default function AdminOrdersPage() {
     const q = search.toLowerCase();
     const matchSearch = q
       ? o.order_number.toLowerCase().includes(q) ||
-        (o.shipping_address?.email ?? "").toLowerCase().includes(q) ||
+        (o.customer_email ?? "").toLowerCase().includes(q) ||
         (o.shipping_address?.first_name ?? "").toLowerCase().includes(q) ||
         (o.shipping_address?.last_name ?? "").toLowerCase().includes(q)
       : true;
@@ -115,7 +114,7 @@ export default function AdminOrdersPage() {
             <table className="w-full">
               <thead className="bg-[#F0E9E3]">
                 <tr>
-                  {["Order", "Customer", "Date", "Items", "Total", "Status", "Payment", ""].map((h) => (
+                  {["Order ID", "Customer Name", "Customer Email", "Phone", "Order Date", "Items", "Total", "Order Status", "Payment Status", ""].map((h) => (
                     <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-[#899581]">
                       {h}
                     </th>
@@ -128,11 +127,14 @@ export default function AdminOrdersPage() {
                     <td className="px-4 py-3 font-mono text-sm font-medium text-[#5D1C34]">
                       {o.order_number}
                     </td>
-                    <td className="px-4 py-3">
-                      <p className="text-sm text-[#11100E]">
-                        {o.shipping_address?.first_name} {o.shipping_address?.last_name}
-                      </p>
-                      <p className="text-xs text-[#899581]">{o.shipping_address?.email}</p>
+                    <td className="px-4 py-3 text-sm text-[#11100E]">
+                      {o.shipping_address?.first_name} {o.shipping_address?.last_name}
+                    </td>
+                    <td className="px-4 py-3 text-xs text-[#899581]">
+                      {o.customer_email}
+                    </td>
+                    <td className="px-4 py-3 text-xs text-[#899581]">
+                      {o.shipping_address?.phone ?? "—"}
                     </td>
                     <td className="px-4 py-3 text-xs text-[#899581]">
                       {formatDateShort(o.created_at)}
@@ -153,13 +155,13 @@ export default function AdminOrdersPage() {
                       </span>
                     </td>
                     <td className="px-4 py-3">
-                      <span
-                        className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${
-                          PAYMENT_STATUS_COLORS[o.payment_status] ?? "bg-gray-100 text-gray-600"
-                        }`}
-                      >
-                        {o.payment_status}
-                      </span>
+                      {o.status === "delivered" ? (
+                        <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${PAYMENT_STATUS_COLORS["paid"]}`}>
+                          paid
+                        </span>
+                      ) : (
+                        <span className="text-xs text-[#899581]">—</span>
+                      )}
                     </td>
                     <td className="px-4 py-3">
                       <Link

@@ -178,6 +178,7 @@ class Order(Base):
     id:               Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     order_number:     Mapped[str]       = mapped_column(String(50), unique=True, nullable=False, index=True)
     user_id:          Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    customer_email:   Mapped[str | None] = mapped_column(String(255), nullable=True, index=True)
     items:            Mapped[list]      = mapped_column(JSONB, nullable=False)
     shipping_address: Mapped[dict]      = mapped_column(JSONB, nullable=False)
     status:           Mapped[str]       = mapped_column(
@@ -186,7 +187,6 @@ class Order(Base):
     )
     subtotal:         Mapped[float]     = mapped_column(Float, nullable=False)
     shipping_cost:    Mapped[float]     = mapped_column(Float, default=0.0)
-    tax:              Mapped[float]     = mapped_column(Float, default=0.0)
     total:            Mapped[float]     = mapped_column(Float, nullable=False)
     payment_method:   Mapped[str]       = mapped_column(String(100), default="")
     payment_status:   Mapped[str]       = mapped_column(
