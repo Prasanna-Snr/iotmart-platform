@@ -1,3 +1,4 @@
+import asyncio
 import random
 import string
 from fastapi import APIRouter, Depends, HTTPException
@@ -7,6 +8,8 @@ from app.database import get_db
 from app.models.models import Order, User
 from app.schemas.orders import OrderCreate, OrderStatusUpdate, OrderOut
 from app.security import get_current_user, get_current_admin
+from app.email_service import send_new_order_email
+from app.config import settings
 
 router = APIRouter()
 
@@ -67,6 +70,22 @@ async def create_order(body: OrderCreate, db: AsyncSession = Depends(get_db), cu
     )
     db.add(order)
     await db.flush()
+
+    # Fire-and-forget admin notification — never blocks the response
+    store_email = await get_setting("store_email", settings.smtp_from_email)
+    if store_email:
+        asyncio.create_task(send_new_order_email(
+            to_email       = store_email,
+            order_number   = order.order_number,
+            customer_name  = current.name,
+            customer_email = current.email,
+            items          = items,
+            subtotal       = subtotal,
+            shipping_cost  = shipping_cost,
+            total          = total,
+            shipping_address = body.shipping_address.model_dump(),
+        ))
+
     return OrderOut.model_validate(order)
 
 

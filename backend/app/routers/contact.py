@@ -1,3 +1,4 @@
+import asyncio
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
@@ -5,8 +6,10 @@ from pydantic import BaseModel, EmailStr
 from uuid import UUID
 from datetime import datetime
 from app.database import get_db
-from app.models.models import ContactMessage
+from app.models.models import ContactMessage, SiteSettings
 from app.security import get_current_admin
+from app.email_service import send_contact_email
+from app.config import settings
 
 router = APIRouter()
 
@@ -42,6 +45,19 @@ async def submit_contact(body: ContactIn, db: AsyncSession = Depends(get_db)):
     )
     db.add(msg)
     await db.flush()
+
+    # Fire-and-forget notification to store admin email
+    row = (await db.execute(select(SiteSettings).where(SiteSettings.key == "store_email"))).scalar_one_or_none()
+    store_email = (row.value if row and row.value else None) or settings.smtp_from_email
+    if store_email:
+        asyncio.create_task(send_contact_email(
+            to_email     = store_email,
+            sender_name  = body.name.strip(),
+            sender_email = body.email,
+            subject      = body.subject.strip(),
+            message      = body.message.strip(),
+        ))
+
     return ContactOut.model_validate(msg)
 
 

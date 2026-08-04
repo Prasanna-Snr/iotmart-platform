@@ -130,3 +130,224 @@ async def send_otp_email(to_email: str, otp: str) -> None:
     is not blocked by network I/O."""
     loop = asyncio.get_event_loop()
     await loop.run_in_executor(None, _send_sync, to_email, otp)
+
+
+# ─── New Order Notification ───────────────────────────────────────────────────
+
+def _smtp_send(to_email: str, msg: MIMEMultipart) -> None:
+    """Shared SMTP dispatch used by all notification senders."""
+    if settings.smtp_use_tls:
+        with smtplib.SMTP_SSL(settings.smtp_host, settings.smtp_port) as server:
+            if settings.smtp_username:
+                server.login(settings.smtp_username, settings.smtp_password)
+            server.sendmail(settings.smtp_from_email, to_email, msg.as_string())
+    else:
+        with smtplib.SMTP(settings.smtp_host, settings.smtp_port) as server:
+            server.ehlo()
+            if settings.smtp_tls_starttls:
+                server.starttls()
+                server.ehlo()
+            if settings.smtp_username:
+                server.login(settings.smtp_username, settings.smtp_password)
+            server.sendmail(settings.smtp_from_email, to_email, msg.as_string())
+
+
+def _build_new_order_message(
+    to_email: str,
+    order_number: str,
+    customer_name: str,
+    customer_email: str,
+    items: list,
+    subtotal: float,
+    shipping_cost: float,
+    total: float,
+    shipping_address: dict,
+) -> MIMEMultipart:
+    site_name = settings.site_name
+    msg = MIMEMultipart("alternative")
+    msg["Subject"] = f"[{site_name}] New Order {order_number}"
+    msg["From"] = settings.smtp_from_email
+    msg["To"] = to_email
+
+    items_rows = "".join(
+        f"<tr>"
+        f"<td style='padding:8px;border-bottom:1px solid #F0E9E3'>{i.get('product_name', '')}</td>"
+        f"<td style='padding:8px;border-bottom:1px solid #F0E9E3;text-align:center'>{i.get('quantity', '')}</td>"
+        f"<td style='padding:8px;border-bottom:1px solid #F0E9E3;text-align:right'>Rs. {i.get('subtotal', 0):,.0f}</td>"
+        f"</tr>"
+        for i in items
+    )
+
+    addr = shipping_address
+    addr_line = ", ".join(filter(None, [
+        addr.get("address_line1"), addr.get("address_line2"),
+        addr.get("city"), addr.get("state"),
+    ]))
+    shipping_display = "Free" if shipping_cost == 0 else f"Rs. {shipping_cost:,.0f}"
+
+    html = f"""\
+<html>
+  <body style="font-family:sans-serif;color:#11100E;max-width:600px;margin:0 auto;padding:24px">
+    <div style="text-align:center;margin-bottom:24px">
+      <span style="font-size:22px;font-weight:700">IoT<span style="color:#A67D45">Mart</span></span>
+    </div>
+    <h2 style="font-size:20px;color:#5D1C34;margin-bottom:4px">New Order Received</h2>
+    <p style="color:#899581;margin-bottom:24px;font-size:14px">
+      Order <strong style="color:#11100E">{order_number}</strong> has just been placed.
+    </p>
+    <table style="width:100%;border-collapse:collapse;margin-bottom:20px">
+      <tr style="background:#F0E9E3">
+        <th style="padding:8px;text-align:left;font-size:12px;color:#899581">Product</th>
+        <th style="padding:8px;text-align:center;font-size:12px;color:#899581">Qty</th>
+        <th style="padding:8px;text-align:right;font-size:12px;color:#899581">Subtotal</th>
+      </tr>
+      {items_rows}
+    </table>
+    <table style="width:100%;margin-bottom:20px;font-size:14px">
+      <tr><td style="color:#899581;padding:4px 0">Subtotal</td><td style="text-align:right">Rs. {subtotal:,.0f}</td></tr>
+      <tr><td style="color:#899581;padding:4px 0">Shipping</td><td style="text-align:right">{shipping_display}</td></tr>
+      <tr style="font-weight:700;font-size:16px">
+        <td style="padding:8px 0 4px">Total</td>
+        <td style="text-align:right;color:#5D1C34">Rs. {total:,.0f}</td>
+      </tr>
+    </table>
+    <div style="background:#F0E9E3;border-radius:10px;padding:16px;margin-bottom:20px;font-size:13px">
+      <p style="margin:0 0 4px;font-weight:600">Customer</p>
+      <p style="margin:0">{customer_name}</p>
+      <p style="margin:0;color:#899581">{customer_email}</p>
+      <p style="margin:10px 0 4px;font-weight:600">Shipping Address</p>
+      <p style="margin:0">{addr.get('first_name', '')} {addr.get('last_name', '')}</p>
+      <p style="margin:0;color:#899581">{addr_line}</p>
+      <p style="margin:0;color:#899581">{addr.get('phone', '')}</p>
+    </div>
+    <p style="font-size:12px;color:#899581;text-align:center">
+      Log in to the admin panel to manage this order.
+    </p>
+  </body>
+</html>"""
+
+    plain = (
+        f"New order {order_number} from {customer_name} ({customer_email})\n"
+        f"Total: Rs. {total:,.0f}\n"
+        f"Items: {len(items)}\n"
+        f"Address: {addr_line}"
+    )
+    msg.attach(MIMEText(plain, "plain"))
+    msg.attach(MIMEText(html, "html"))
+    return msg
+
+
+def _send_new_order_sync(
+    to_email: str,
+    order_number: str,
+    customer_name: str,
+    customer_email: str,
+    items: list,
+    subtotal: float,
+    shipping_cost: float,
+    total: float,
+    shipping_address: dict,
+) -> None:
+    if not settings.smtp_host:
+        log.warning("[DEV] New order %s from %s — SMTP not configured, skipping email", order_number, customer_email)
+        print(f"\n[DEV] New order: {order_number} | {customer_email} | Rs. {total:,.0f}\n", flush=True)
+        return
+    msg = _build_new_order_message(
+        to_email, order_number, customer_name, customer_email,
+        items, subtotal, shipping_cost, total, shipping_address,
+    )
+    try:
+        _smtp_send(to_email, msg)
+        log.info("New order notification sent to %s for order %s", to_email, order_number)
+    except smtplib.SMTPException as exc:
+        log.error("Failed to send new order email for %s: %s", order_number, exc)
+
+
+async def send_new_order_email(
+    to_email: str,
+    order_number: str,
+    customer_name: str,
+    customer_email: str,
+    items: list,
+    subtotal: float,
+    shipping_cost: float,
+    total: float,
+    shipping_address: dict,
+) -> None:
+    """Fire-and-forget new-order notification to the store admin email.
+    Never raises — email failure must not block the order response."""
+    loop = asyncio.get_event_loop()
+    await loop.run_in_executor(
+        None, _send_new_order_sync,
+        to_email, order_number, customer_name, customer_email,
+        items, subtotal, shipping_cost, total, shipping_address,
+    )
+
+
+# ─── Contact Message Notification ────────────────────────────────────────────
+
+def _send_contact_sync(
+    to_email: str,
+    sender_name: str,
+    sender_email: str,
+    subject: str,
+    message: str,
+) -> None:
+    if not settings.smtp_host:
+        log.warning("[DEV] Contact from %s — SMTP not configured, skipping email", sender_email)
+        print(f"\n[DEV] Contact message from {sender_name} <{sender_email}>: {subject}\n", flush=True)
+        return
+
+    site_name = settings.site_name
+    mime_msg = MIMEMultipart("alternative")
+    mime_msg["Subject"] = f"[{site_name}] Contact: {subject}"
+    mime_msg["From"]    = settings.smtp_from_email
+    mime_msg["To"]      = to_email
+    mime_msg["Reply-To"] = sender_email
+
+    html = f"""\
+<html>
+  <body style="font-family:sans-serif;color:#11100E;max-width:600px;margin:0 auto;padding:24px">
+    <div style="text-align:center;margin-bottom:24px">
+      <span style="font-size:22px;font-weight:700">IoT<span style="color:#A67D45">Mart</span></span>
+    </div>
+    <h2 style="font-size:20px;color:#5D1C34;margin-bottom:4px">New Contact Message</h2>
+    <div style="background:#F0E9E3;border-radius:10px;padding:16px;margin:20px 0;font-size:13px">
+      <p style="margin:0 0 4px"><strong>From:</strong> {sender_name}</p>
+      <p style="margin:0 0 4px"><strong>Email:</strong>
+        <a href="mailto:{sender_email}" style="color:#5D1C34">{sender_email}</a>
+      </p>
+      <p style="margin:0"><strong>Subject:</strong> {subject}</p>
+    </div>
+    <div style="border:1px solid #CDBBAD;border-radius:10px;padding:16px;font-size:14px;
+                line-height:1.6;white-space:pre-wrap">{message}</div>
+    <p style="font-size:12px;color:#899581;margin-top:20px;text-align:center">
+      Reply directly to this email to respond to {sender_name}.
+    </p>
+  </body>
+</html>"""
+
+    plain = f"From: {sender_name} <{sender_email}>\nSubject: {subject}\n\n{message}"
+    mime_msg.attach(MIMEText(plain, "plain"))
+    mime_msg.attach(MIMEText(html, "html"))
+
+    try:
+        _smtp_send(to_email, mime_msg)
+        log.info("Contact notification sent to %s from %s", to_email, sender_email)
+    except smtplib.SMTPException as exc:
+        log.error("Failed to send contact email from %s: %s", sender_email, exc)
+
+
+async def send_contact_email(
+    to_email: str,
+    sender_name: str,
+    sender_email: str,
+    subject: str,
+    message: str,
+) -> None:
+    """Non-blocking contact message notification to the store admin email."""
+    loop = asyncio.get_event_loop()
+    await loop.run_in_executor(
+        None, _send_contact_sync,
+        to_email, sender_name, sender_email, subject, message,
+    )
