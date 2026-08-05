@@ -6,6 +6,7 @@ import ProductCard from "@/components/product/ProductCard";
 import TutorialCard from "@/components/tutorial/TutorialCard";
 import HomeNewsletterForm from "@/components/ui/HomeNewsletterForm";
 import { SITE_NAME, SITE_URL } from "@/lib/constants";
+import { jsonLdString, productListJsonLd } from "@/lib/seo";
 
 export const metadata: Metadata = {
   title: `${SITE_NAME} — Buy IoT Hardware, Sensors & Dev Boards Nepal`,
@@ -37,6 +38,38 @@ export default async function HomePage() {
   ]);
   return (
     <>
+      {/* ── Homepage structured data ────────────────────────────────────
+          WebPage schema ties into the root Organization/WebSite graph;
+          the ItemList mirrors the featured products rendered below.
+      ─────────────────────────────────────────────────────────────── */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: jsonLdString({
+            "@context": "https://schema.org",
+            "@type": "WebPage",
+            "@id": `${SITE_URL}/#webpage`,
+            url: SITE_URL,
+            name: `${SITE_NAME} — Buy IoT Hardware, Sensors & Dev Boards Nepal`,
+            description: 'IoTMart Nepal: Buy Arduino, ESP32, Raspberry Pi, sensors, robotics parts and IoT development boards online. 200+ products, free tutorials, fast shipping.',
+            isPartOf: { "@id": `${SITE_URL}/#website` },
+            about: { "@id": `${SITE_URL}/#organization` },
+            primaryImageOfPage: {
+              "@type": "ImageObject",
+              url: `${SITE_URL}/og-default.png`,
+            },
+          }),
+        }}
+      />
+      {featuredProducts.length > 0 && (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: jsonLdString(productListJsonLd(featuredProducts)),
+          }}
+        />
+      )}
+
       {/* Hero */}
       <section id="main-content" className="relative overflow-hidden bg-[#11100E] text-white">
         {/* Background video */}
