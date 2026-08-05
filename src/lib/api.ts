@@ -257,12 +257,32 @@ export const cmsApi = {
   list: (): Promise<any[]> => apiFetch("cms/pages"),
   get: (id: string): Promise<any> => apiFetch(`cms/pages/${id}`),
   getBySlug: (slug: string): Promise<any> => apiFetch(`cms/pages/slug/${slug}`),
-  create: (body: any, token: string) =>
+  create: (body: any, token: string): Promise<any> =>
     apiFetch("cms/pages", { method: "POST", body: JSON.stringify(body), token }),
-  save: (id: string, body: any, token: string) =>
+  save: (id: string, body: any, token: string): Promise<any> =>
     apiFetch(`cms/pages/${id}`, { method: "PUT", body: JSON.stringify(body), token }),
-  delete: (id: string, token: string) =>
+  delete: (id: string, token: string): Promise<any> =>
     apiFetch(`cms/pages/${id}`, { method: "DELETE", token }),
+};
+
+// ─── Banners ──────────────────────────────────────────────────────────────────
+
+export const bannersApi = {
+  list: (active?: boolean): Promise<any[]> =>
+    apiFetch(`banners${active === undefined ? "" : `?active=${active}`}`),
+  create: (body: any, token: string) =>
+    apiFetch("banners", { method: "POST", body: JSON.stringify(body), token }),
+  update: (id: string, body: any, token: string) =>
+    apiFetch(`banners/${id}`, { method: "PUT", body: JSON.stringify(body), token }),
+  delete: (id: string, token: string) =>
+    apiFetch(`banners/${id}`, { method: "DELETE", token }),
+};
+
+// ─── Admin dashboard ──────────────────────────────────────────────────────────
+
+export const adminApi = {
+  dashboard: (token: string): Promise<any> =>
+    apiFetch("admin/dashboard", { token }),
 };
 
 // ─── Analytics ────────────────────────────────────────────────────────────────

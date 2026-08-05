@@ -99,8 +99,8 @@ export const ADMIN_NAV = [
     children: [
       { label: "All Products", href: "/admin/products" },
       { label: "Add Product", href: "/admin/products/new" },
-      { label: "Categories", href: "/admin/products/categories" },
-      { label: "Brands", href: "/admin/products/brands" },
+      { label: "Categories", href: "/admin/categories" },
+      { label: "Brands", href: "/admin/brands" },
     ],
   },
   {

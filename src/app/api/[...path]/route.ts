@@ -42,10 +42,33 @@ async function proxy(
       }
     });
 
-    return new NextResponse(resBody, {
+    const response = new NextResponse(resBody, {
       status: res.status,
       headers: resHeaders,
     });
+
+    // Mirror the admin session into an httpOnly cookie so the proxy.ts guard
+    // can protect /admin/* server-side. The client still keeps its token in
+    // localStorage for authenticated API calls.
+    if (res.ok && (path === "auth/login" || path === "auth/refresh")) {
+      try {
+        const data = JSON.parse(new TextDecoder().decode(resBody));
+        if (data?.access_token && data?.user?.role === "admin") {
+          response.cookies.set("admin_token", data.access_token, {
+            httpOnly: true,
+            sameSite: "lax",
+            path: "/",
+            maxAge: 30 * 24 * 60 * 60,
+            secure: process.env.NODE_ENV === "production",
+          });
+        }
+      } catch { /* response body is not JSON — ignore */ }
+    }
+    if (res.ok && path === "auth/logout") {
+      response.cookies.delete("admin_token");
+    }
+
+    return response;
   } catch {
     return NextResponse.json({ error: "API unreachable" }, { status: 502 });
   }

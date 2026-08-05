@@ -5,6 +5,7 @@ import { Cpu, BookOpen, Package, Users, Truck, ArrowRight, Star, Zap, Shield } f
 import ProductCard from "@/components/product/ProductCard";
 import TutorialCard from "@/components/tutorial/TutorialCard";
 import HomeNewsletterForm from "@/components/ui/HomeNewsletterForm";
+import BannerCarousel from "@/components/ui/BannerCarousel";
 import { SITE_NAME, SITE_URL } from "@/lib/constants";
 import { jsonLdString, productListJsonLd } from "@/lib/seo";
 
@@ -25,7 +26,7 @@ export default async function HomePage() {
   const apiBase = process.env.API_INTERNAL_URL ?? "http://localhost:8000";
 
   // Fetch real categories, featured products, and featured tutorials in parallel
-  const [categories, featuredProducts, featuredTutorials] = await Promise.all([
+  const [categories, featuredProducts, featuredTutorials, banners] = await Promise.all([
     fetch(`${apiBase}/api/categories`, { next: { revalidate: 60 } })
       .then((r) => r.ok ? r.json() : [])
       .catch(() => []),
@@ -34,6 +35,9 @@ export default async function HomePage() {
       .catch(() => []),
     fetch(`${apiBase}/api/tutorials?featured=true&published=true&page_size=3`, { next: { revalidate: 60 } })
       .then((r) => r.ok ? r.json().then((d: any) => d.items ?? []) : [])
+      .catch(() => []),
+    fetch(`${apiBase}/api/banners?active=true`, { next: { revalidate: 60 } })
+      .then((r) => r.ok ? r.json() : [])
       .catch(() => []),
   ]);
   return (
@@ -104,6 +108,9 @@ export default async function HomePage() {
           </div>
         </div>
       </section>
+
+      {/* Promotional banners (from CMS) */}
+      {banners.length > 0 && <BannerCarousel banners={banners} />}
 
       {/* Stats */}
       <section className="bg-[#5D1C34]">

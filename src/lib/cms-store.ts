@@ -229,89 +229,23 @@ export const BLOCK_META: Record<BlockType, { label: string; icon: string; descri
 };
 
 // ─── Mutable page store ───────────────────────────────────────────────────────
-const NOW = new Date().toISOString();
 
-const initialPages: CMSPage[] = [
-  {
-    id: "page-home", title: "Home", slug: "/", status: "published", updatedAt: NOW,
-    blocks: [
-      { id: "b1", type: "heading", text: "Build the Future with IoT", level: "h1", align: "center", color: "" },
-      { id: "b2", type: "paragraph", content: "Your one-stop shop for sensors, microcontrollers, and development boards.", align: "center", fontSize: "lg", width: "auto", height: "auto", paddingTop: 0, paddingRight: 0, paddingBottom: 0, paddingLeft: 0 },
-      { id: "b3", type: "button",    text: "Shop Products", link: "/products", variant: "primary", size: "lg", align: "center", openNewTab: false },
-    ],
-  },
-  {
-    id: "page-about", title: "About Us", slug: "/about", status: "published", updatedAt: NOW,
-    blocks: [
-      { id: "b10", type: "cover",     src: "https://images.unsplash.com/photo-1518770660439-4636190af475?w=1600&q=80", heading: "About IoTMart", subheading: "Engineers and makers building the future together.", overlay: 55, height: "md", textColor: "#FFFFFF" },
-      { id: "b11", type: "heading", text: "Our Mission", level: "h2", align: "center", color: "" },
-      { id: "b12", type: "paragraph", content: "IoTMart was founded in 2022 with a simple idea: make it easy for anyone to get the exact components they need with free step-by-step tutorials.", align: "center", fontSize: "base", width: "auto", height: "auto", paddingTop: 0, paddingRight: 0, paddingBottom: 0, paddingLeft: 0 },
-      { id: "b13", type: "heading", text: "Our Values", level: "h2", align: "left", color: "" },
-      { id: "b14", type: "list",      style: "unordered", items: ["Quality First — tested components from trusted manufacturers.", "Education — free tutorials for every skill level.", "Innovation — latest IoT tech as soon as it ships.", "Support — real humans answer your questions."] },
-    ],
-  },
-  {
-    id: "page-faq", title: "FAQ", slug: "/faq", status: "published", updatedAt: NOW,
-    blocks: [
-      { id: "b30", type: "heading", text: "Frequently Asked Questions", level: "h1", align: "center", color: "" },
-      { id: "b31", type: "paragraph", content: "Everything you need to know about IoTMart.", align: "center", fontSize: "base", width: "auto", height: "auto", paddingTop: 0, paddingRight: 0, paddingBottom: 0, paddingLeft: 0 },
-      { id: "b32", type: "heading", text: "Ordering", level: "h3", align: "left", color: "" },
-      { id: "b33", type: "list",      style: "unordered", items: ["Browse products, add to cart, then checkout.", "Orders can be cancelled within 2 hours of placement."] },
-      { id: "b34", type: "heading", text: "Shipping", level: "h3", align: "left", color: "" },
-      { id: "b35", type: "list",      style: "unordered", items: ["Free shipping on orders over $50.", "Standard: 3–7 business days. Express: 1–2 days."] },
-    ],
-  },
-  {
-    id: "page-contact", title: "Contact", slug: "/contact", status: "published", updatedAt: NOW,
-    blocks: [
-      { id: "b20", type: "heading", text: "Contact Us", level: "h1", align: "center", color: "" },
-      { id: "b21", type: "paragraph", content: "Have a question? Email support@iotmart.com or call +1 (555) 000-0000. We reply within 24 hours.", align: "center", fontSize: "base", width: "auto", height: "auto", paddingTop: 0, paddingRight: 0, paddingBottom: 0, paddingLeft: 0 },
-      { id: "b22", type: "button",    text: "Email Us", link: "mailto:support@iotmart.com", variant: "primary", size: "md", align: "center", openNewTab: false },
-    ],
-  },
-  {
-    id: "page-privacy", title: "Privacy Policy", slug: "/privacy", status: "published", updatedAt: NOW,
-    blocks: [
-      { id: "b40", type: "heading", text: "Privacy Policy", level: "h1", align: "left", color: "" },
-      { id: "b41", type: "paragraph", content: "Last updated: January 1, 2025\n\nIoTMart is committed to protecting your personal information.", align: "left", fontSize: "base", width: "auto", height: "auto", paddingTop: 0, paddingRight: 0, paddingBottom: 0, paddingLeft: 0 },
-      { id: "b42", type: "heading", text: "Information We Collect", level: "h2", align: "left", color: "" },
-      { id: "b43", type: "paragraph", content: "We collect information you provide when you create an account, place an order, or contact support.", align: "left", fontSize: "base", width: "auto", height: "auto", paddingTop: 0, paddingRight: 0, paddingBottom: 0, paddingLeft: 0 },
-    ],
-  },
-  {
-    id: "page-shipping", title: "Shipping Policy", slug: "/shipping", status: "published", updatedAt: NOW,
-    blocks: [
-      { id: "b50", type: "heading", text: "Shipping Policy", level: "h1", align: "left", color: "" },
-      { id: "b51", type: "table",     headers: ["Method", "Time", "Cost"], rows: [["Standard", "3–7 days", "Free over $50"], ["Express", "1–2 days", "$12.99"], ["International", "7–21 days", "From $19.99"]] },
-      { id: "b52", type: "paragraph", content: "We ship to over 35 countries. Most orders are processed within 1–2 business days.", align: "left", fontSize: "base", width: "auto", height: "auto", paddingTop: 0, paddingRight: 0, paddingBottom: 0, paddingLeft: 0 },
-    ],
-  },
-  {
-    id: "page-new", title: "New Page", slug: "/new-page", status: "draft", updatedAt: NOW,
-    blocks: [
-      { id: "b60", type: "heading", text: "New Page Title", level: "h1", align: "center", color: "" },
-      { id: "b61", type: "paragraph", content: "Start building this page by adding blocks from the panel.", align: "center", fontSize: "base", width: "auto", height: "auto", paddingTop: 0, paddingRight: 0, paddingBottom: 0, paddingLeft: 0 },
-    ],
-  },
-];
-
-let _pages: CMSPage[] = JSON.parse(JSON.stringify(initialPages));
-
-export function getPages(): CMSPage[]                          { return _pages; }
-export function getPageById(id: string): CMSPage | undefined   { return _pages.find((p) => p.id === id); }
-export function savePage(p: CMSPage): void {
-  p.updatedAt = new Date().toISOString();
-  const i = _pages.findIndex((x) => x.id === p.id);
-  i >= 0 ? (_pages[i] = p) : _pages.push(p);
-}
-export function deletePage(id: string): void { _pages = _pages.filter((p) => p.id !== id); }
-export function createPage(): CMSPage {
-  const id = `page-${uid()}`;
-  const p: CMSPage = {
-    id, title: "New Page", slug: `/new-page-${uid()}`,
-    status: "draft", updatedAt: new Date().toISOString(),
-    blocks: [],
+/**
+ * Map an API CMSPageOut (backend) record to the local CMSPage shape used by
+ * the page builder. The backend is the single source of truth.
+ */
+export function apiPageToLocal(a: any): CMSPage {
+  return {
+    id: String(a.id),
+    title: a.title,
+    slug: a.slug,
+    status: a.status === "published" ? "published" : "draft",
+    blocks: a.blocks ?? [],
+    updatedAt: a.updated_at ?? new Date().toISOString(),
   };
-  _pages.push(p);
-  return p;
+}
+
+/** Map a local CMSPage to the payload the CMS API accepts. */
+export function localPageToApi(p: CMSPage): { title: string; slug: string; status: PageStatus; blocks: Block[] } {
+  return { title: p.title, slug: p.slug, status: p.status, blocks: p.blocks };
 }

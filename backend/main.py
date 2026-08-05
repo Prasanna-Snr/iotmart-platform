@@ -9,7 +9,7 @@ from slowapi.errors import RateLimitExceeded
 
 from app.database import engine, Base
 from app.limiter import limiter
-from app.routers import auth, users, categories, brands, products, tutorials, orders, cms, upload, reviews, settings, contact, analytics
+from app.routers import auth, users, categories, brands, products, tutorials, orders, cms, upload, banners, admin, reviews, settings, contact, analytics
 
 
 @asynccontextmanager
@@ -52,7 +52,9 @@ app.include_router(products.router,   prefix="/api/products",   tags=["Products"
 app.include_router(tutorials.router,  prefix="/api/tutorials",  tags=["Tutorials"])
 app.include_router(orders.router,     prefix="/api/orders",     tags=["Orders"])
 app.include_router(cms.router,        prefix="/api/cms",        tags=["CMS"])
-app.include_router(upload.router,     prefix="/api/upload",    tags=["Upload"])
+app.include_router(banners.router,    prefix="/api/banners",    tags=["Banners"])
+app.include_router(admin.router,      prefix="/api/admin",      tags=["Admin"])
+app.include_router(upload.router,     prefix="/api/upload",     tags=["Upload"])
 app.include_router(reviews.router,    prefix="/api/reviews",   tags=["Reviews"])
 app.include_router(settings.router,   prefix="/api/settings",  tags=["Settings"])
 app.include_router(contact.router,    prefix="/api/contact",   tags=["Contact"])
