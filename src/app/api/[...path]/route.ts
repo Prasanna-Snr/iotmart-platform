@@ -42,7 +42,7 @@ async function proxy(
       }
     });
 
-    const response = new NextResponse(resBody, {
+    const response = new NextResponse(resBody.byteLength ? resBody : null, {
       status: res.status,
       headers: resHeaders,
     });
@@ -69,7 +69,8 @@ async function proxy(
     }
 
     return response;
-  } catch {
+  } catch (err) {
+    console.error(`[api-proxy] ${req.method} /api/${path} failed:`, err);
     return NextResponse.json({ error: "API unreachable" }, { status: 502 });
   }
 }

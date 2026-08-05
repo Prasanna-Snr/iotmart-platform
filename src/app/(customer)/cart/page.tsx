@@ -82,7 +82,7 @@ export default function CartPage() {
                 className="relative w-20 h-20 rounded-lg overflow-hidden bg-[#F0E9E3] flex-shrink-0"
               >
                 <Image
-                  src={product.images[0]}
+                  src={product.images?.[0]}
                   alt={product.name}
                   fill
                   sizes="80px"
@@ -98,7 +98,7 @@ export default function CartPage() {
                   {product.name}
                 </Link>
                 <p className="text-xs text-[#899581] mt-0.5">
-                  {product.brand.name}
+                  {product.brand?.name}
                 </p>
 
                 <div className="flex items-center justify-between mt-3">

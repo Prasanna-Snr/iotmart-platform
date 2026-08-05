@@ -4,12 +4,13 @@ from datetime import datetime
 
 
 class OrderItemIn(BaseModel):
+    """Only product identity + quantity are accepted. Prices are always
+    read from the database server-side, never trusted from the client."""
+
     product_id: str
-    product_name: str
+    product_name: str = ""
     product_image: str = ""
-    price: float
     quantity: int
-    subtotal: float
 
 
 class ShippingAddressIn(BaseModel):

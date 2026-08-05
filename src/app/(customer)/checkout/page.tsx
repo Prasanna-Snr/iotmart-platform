@@ -70,6 +70,19 @@ export default function CheckoutPage() {
     }
   }, [token]);
 
+  const applyAddress = (a: any) => {
+    const name = (a.full_name ?? "").split(" ");
+    setShipping({
+      firstName: name[0] ?? "",
+      lastName: name.slice(1).join(" ") ?? "",
+      phone: a.phone ?? "",
+      addressLine1: a.address_line1 ?? "",
+      addressLine2: a.address_line2 ?? "",
+      city: a.city ?? "",
+      state: a.state ?? "",
+    });
+  };
+
   // Fetch saved addresses
   useEffect(() => {
     if (!token) return;
@@ -83,19 +96,6 @@ export default function CheckoutPage() {
       .catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]);
-
-  const applyAddress = (a: any) => {
-    const name = (a.full_name ?? "").split(" ");
-    setShipping({
-      firstName: name[0] ?? "",
-      lastName: name.slice(1).join(" ") ?? "",
-      phone: a.phone ?? "",
-      addressLine1: a.address_line1 ?? "",
-      addressLine2: a.address_line2 ?? "",
-      city: a.city ?? "",
-      state: a.state ?? "",
-    });
-  };
 
   const shippingCost = calculateShipping(subtotal, freeShippingThreshold, defaultShippingCost);
   const total = calculateTotal(subtotal, freeShippingThreshold, defaultShippingCost);
@@ -127,9 +127,7 @@ export default function CheckoutPage() {
           product_id:    product.id,
           product_name:  product.name,
           product_image: product.images?.[0] ?? "",
-          price:         product.price,
           quantity,
-          subtotal:      Math.round(product.price * quantity * 100) / 100,
         })),
         shipping_address: {
           first_name:    shipping.firstName,

@@ -38,7 +38,7 @@ Buying IoT components online is usually fragmented: sellers list parts with no g
 - **Admin panel:** Dashboard, products (CRUD), product categories (API-backed at `/admin/categories`) plus a duplicate mock page at `/admin/products/categories`, brands, orders (list/detail/status), customers, tutorials (CRUD + categories), reviews moderation, banners, analytics dashboard, settings, and a visual CMS page builder.
 - **CMS page builder:** Figma-like 3-panel editor (component tree / canvas / properties) with 14 block types, inline WYSIWYG editing, and preview mode.
 - **Analytics:** First-party visitor tracking — page views, sessions, heartbeats, online visitors, device/browser/country breakdowns, daily trends. IPs are hashed, bots filtered.
-- **Email:** OTP emails, new-order notifications to admin, and contact-form notifications via SMTP (with console fallback in dev).
+- **Email:** OTP emails, new-order notifications to admin, order-confirmation emails to customers, order-status notifications (processing/delivered/cancelled), and contact-form notifications via SMTP (with console fallback in dev).
 - **SEO:** sitemap.xml, robots.txt, canonical URLs, Open Graph/Twitter cards, and rich JSON-LD (Organization, WebSite, Product, Review, TechArticle, HowTo, FAQPage, BreadcrumbList, ItemList).
 
 ### Technology stack
@@ -279,7 +279,7 @@ This section covers every important file. Files are grouped; the notation `X →
 #### `backend/app/email_service.py`
 
 - **Purpose:** Email sending without blocking the event loop.
-- **Main functions:** `generate_otp` (crypto-random 6 digits), `hash_otp`/`verify_otp` (bcrypt), `send_otp_email`, `send_new_order_email`, `send_contact_email`, plus sync SMTP helpers run via `run_in_executor`.
+- **Main functions:** `generate_otp` (crypto-random 6 digits), `hash_otp`/`verify_otp` (bcrypt), `send_otp_email`, `send_new_order_email`, `send_order_confirmation_email`, `send_order_status_email`, `send_contact_email`, plus sync SMTP helpers run via `run_in_executor`.
 - **Behavior:** If `smtp_host` is empty, emails are printed to stdout (dev mode); OTP response exposes `dev_otp` when SMTP is off. HTML templates are hand-written f-strings with brand styling.
 - **Possible issues:** SMTP failures are logged but not surfaced to the client for OTP (by design, but means a misconfigured SMTP silently breaks registration in production while still exposing `dev_otp` if `smtp_host` is blank). New-order/contact emails are fire-and-forget with no retry/queue.
 
@@ -294,11 +294,12 @@ Pydantic v2 models. Notable:
 - **`products.py`** — `ProductCreate`/`ProductUpdate`/`ProductOut` (nested Category/Brand/Reviews), `ProductListOut` (paginated), `ReviewCreate`/`ReviewOut`.
 - **`catalog.py`** — Category and Brand schemas (CategoryOut carries `product_count`).
 - **`tutorials.py`** — Tutorial CRUD + category schemas.
-- **`orders.py`** — `OrderCreate` (items + shipping address + payment method), `OrderStatusUpdate`, `OrderOut`.
+- **`orders.py`** — `OrderCreate` (items with product_id + quantity only + shipping address + payment method), `OrderStatusUpdate`, `OrderOut`.
+- **Note:** `OrderItemIn` no longer accepts client `price`/`subtotal` — prices are read from the database server-side.
 - **`cms.py`** — CMSPage CRUD schemas (blocks are untyped `list`).
 - **`analytics.py`** — tracking/heartbeat requests + dashboard response schemas.
 
-**Issue:** several schemas validate weakly (e.g., `OrderCreate.items[].price` and `subtotal` are trusted from the client; `ProductCreate.price` accepts negative values; `ReviewCreate.rating` has no 1–5 constraint).
+**Issue:** several schemas validate weakly (e.g., `ProductCreate.price` accepts negative values; `ReviewCreate.rating` has no 1–5 constraint).
 
 ### 3.5 Backend routers
 
@@ -310,7 +311,7 @@ All routers follow the same pattern: `APIRouter`, `Depends(get_db)`, public read
 - **`brands.py`** — Public list/get; admin CRUD.
 - **`products.py`** — Public filtered list (category, brand, search via `ilike`, price range, featured, in-stock; pagination up to 500/page), get by id/slug, admin CRUD, authenticated `POST /{id}/reviews` (recalculates product rating).
 - **`tutorials.py`** — Public list/filter/get (GET increments `views`), admin CRUD + tutorial category CRUD.
-- **`orders.py`** — Create (auth), list (own or all for admin), get (own or admin), cancel own pending order, admin status update.
+- **`orders.py`** — Create (auth; server-side pricing, stock validation + decrement, atomic transaction, admin + customer emails), list (own or all for admin), get (own or admin), cancel own pending order (restores stock), admin status update (notifies customer).
 - **`cms.py`** — Public page list/get; admin CRUD.
 - **`upload.py`** — Admin-only image upload; validates content-type (JPEG/PNG/WebP/GIF) and 5 MB cap; stores under `backend/public/uploads/<uuid>.<ext>`.
 - **`reviews.py`** — Admin list/filter, toggle verified, delete (recalculates rating).
@@ -513,13 +514,17 @@ Browser
    ▼
 15. Proxy forwards to FastAPI http://localhost:8000/api/orders (cookies/headers pass through)
    ▼
-16. orders.create_order: reads shipping settings, computes subtotal/shipping/total,
-    creates Order row, fires background send_new_order_email to store email
-   ▼
+16. orders.create_order: reads shipping settings; **server-side pricing** from `products.price × quantity`
+    (client prices ignored); **row-locks products** (`FOR UPDATE`); validates stock (409 on oversell);
+    decrements stock atomically with order creation in one DB transaction; fires background
+    `send_new_order_email` to store email + `send_order_confirmation_email` to the customer
+    ▼
 17. Response returns through the proxy → order confirmation screen; cart cleared
-   ▼
-18. Admin later PATCHes /api/orders/{id}/status → "delivered" (payment marked paid)
-   ▼
+    ▼
+18. Admin later PATCHes /api/orders/{id}/status → "processing"/"delivered"/"cancelled"
+    (delivered marks payment paid + awards reward points; cancelled restores stock);
+    customer gets an order-status email on each change
+    ▼
 19. Customer sees order status in /profile → OrderHistoryPanel
 ```
 
@@ -582,10 +587,9 @@ Unless noted, read endpoints are public and write endpoints require admin. Auth 
 ### Orders
 - `GET /api/orders` — auth; admin sees all, customer sees own.
 - `GET /api/orders/{id}` — auth; admin or owner.
-- `POST /api/orders` — auth. **Business logic:** reads `shipping_free_threshold`/`shipping_default_cost` from SiteSettings (defaults 5000/100); `subtotal` = sum of **client-provided** item subtotals; `shipping = 0 if subtotal ≥ threshold else default_cost`; `total = subtotal + shipping`; payment_status `pending`; fires background admin email. 201.
-- `PATCH /api/orders/{id}/cancel` — auth; **owner only**; only `pending` orders cancellable.
-- `PATCH /api/orders/{id}/status` — admin; valid statuses `pending|processing|delivered|cancelled` (note: **not** `shipped`/`refunded`, which exist in the DB enum); sets `payment_status=paid` when delivered.
-- **Critical issue:** order totals trust client-sent prices/subtotals — a client can place an order with arbitrary amounts. Stock is never checked or decremented.
+- `POST /api/orders` — auth. **Business logic:** products are fetched from the DB and **row-locked** (`SELECT … FOR UPDATE`); prices/subtotals are **computed server-side** (`products.price × quantity`) — client-sent amounts are ignored; reads `shipping_free_threshold`/`shipping_default_cost` from SiteSettings (defaults 5000/100); `shipping = 0 if subtotal ≥ threshold else default_cost`; `total = subtotal + shipping`; validates stock per item (409 on oversell); **decrements stock** and creates the Order in a **single atomic transaction**; payment_status `pending`; fires background admin notification + customer confirmation email. 201.
+- `PATCH /api/orders/{id}/cancel` — auth; **owner only**; only `pending` orders cancellable; **restores reserved stock**; notifies customer.
+- `PATCH /api/orders/{id}/status` — admin; valid statuses `pending|processing|shipped|delivered|cancelled|refunded`; `delivered` sets `payment_status=paid` + awards reward points (idempotent); `cancelled` restores stock; customer gets a status email on processing/delivered/cancelled.
 
 ### Reviews (admin)
 - `GET /api/reviews` — admin; filter `verified`, `search` (user_name).
@@ -870,7 +874,7 @@ The admin is a client-rendered route group behind `/admin/layout.tsx`, which sho
 
 ## 11. Customer Side
 
-- **Homepage** — hero video, category grid, featured products/tutorials, value props, newsletter (non-functional).
+- **Homepage** — hero video, category grid, featured products/tutorials, value props, newsletter (API-backed, `POST /api/newsletter/subscribe`).
 - **Product listing** — server-rendered facets (category/brand/search/price/in-stock) with URL-driven filtering and pagination.
 - **Search** — dedicated `/search` page across products + tutorials.
 - **Product detail** — gallery/lightbox, discount badge, stock indicator, add-to-cart, specs, reviews (+ write review for logged-in users), related products.
@@ -878,7 +882,7 @@ The admin is a client-rendered route group behind `/admin/layout.tsx`, which sho
 - **Checkout** — 3 steps (Shipping → Review/Place Order → Confirmation); **Cash on Delivery only**; requires login; validation on shipping fields; clears cart on success.
 - **Payment** — none integrated; `payment_method="cod"`, `payment_status="pending"` (becomes `paid` only when admin marks order delivered).
 - **Orders** — profile → OrderHistoryPanel: expandable order details, cancel while pending.
-- **Profile** — dashboard/orders/settings implemented; addresses, payment methods, wishlist, rewards are **placeholders**.
+- **Profile** — dashboard/orders/settings; addresses, wishlist, and rewards are **API-backed** (CRUD, optimistic toggle, point ledger), payment methods is a COD-only notice.
 - **Tutorials** — browse/filter; detailed guides with wiring tables, code, and "shop components" cross-links.
 - **Reviews** — post (verified-flag moderation by admin), display in product detail.
 - **Blog / Careers** — links exist in the footer, **no pages**; newsletter forms are cosmetic.
@@ -888,11 +892,10 @@ The admin is a client-rendered route group behind `/admin/layout.tsx`, which sho
 ## 12. Business Logic
 
 ### Pricing & shipping
-- Backend computes `subtotal` = Σ client-sent item subtotals; `shipping = 0` if subtotal ≥ `shipping_free_threshold` (SiteSettings, default 5000) else `shipping_default_cost` (default 100); `total = subtotal + shipping`. Frontend mirrors this in `utils.calculateShipping/Total` and `useStoreSettings`.
-- **Risk:** client can set arbitrary item prices/subtotals → order total is not trustworthy.
+- Backend computes prices **server-side**: `subtotal` = Σ `products.price × quantity` read from the DB (client-sent prices/subtotals are ignored — `OrderItemIn` only accepts `product_id`/`quantity`); `shipping = 0` if subtotal ≥ `shipping_free_threshold` (SiteSettings, default 5000) else `shipping_default_cost` (default 100); `total = subtotal + shipping`. Frontend mirrors the display math in `utils.calculateShipping/Total` and `useStoreSettings`.
 
 ### Inventory
-- `products.stock` and `products.in_stock` are admin-managed flags only. **No decrement on order, no reservation, no low-stock enforcement.** The `notify_low_stock` setting is never used.
+- `products.stock` is enforced at order time: products are **row-locked** (`FOR UPDATE`), stock is validated per item (409 on oversell), then **decremented in the same transaction** as order creation (stock is reserved at order placement for COD). `in_stock` flips to `false` when stock reaches 0 and back when stock is restored. Cancelling a pending order **returns reserved stock**. Concurrent orders cannot oversell the same stock.
 
 ### Coupons, tax, discounts
 - **Coupons: none.** **Tax:** `tax_rate`/`tax_id` settings exist but are unused; the `orders.tax` column was dropped. **Discounts:** display-only (`original_price` vs `price` badge); no campaign engine.
@@ -901,7 +904,7 @@ The admin is a client-rendered route group behind `/admin/layout.tsx`, which sho
 - Rating recomputed on add/delete by scanning all reviews for the product. `verified` flag = admin moderation toggle; only `product.review_count > 0` gates AggregateRating JSON-LD.
 
 ### Notifications & emails
-- OTP emails (required), new-order email to store admin (fire-and-forget), contact-form email to store admin. **No customer order confirmation email**, no order-status emails, no password emails. `notify_*` settings are stored but only `store_email` is actually read.
+- OTP emails (required), new-order email to store admin (fire-and-forget), **order-confirmation email to the customer on placement**, **order-status emails to the customer on processing/delivered/cancelled**, and contact-form email to store admin. `notify_*` settings are stored but only `store_email` is actually read. Email tasks are fire-and-forget with a console fallback in dev and never block the order response.
 
 ### Analytics business rules
 - Bots and `/api|/admin|/_next|/uploads` paths skipped; IPs hashed; online presence TTL 5 min; session duration capped at 24h.
@@ -949,7 +952,7 @@ The admin is a client-rendered route group behind `/admin/layout.tsx`, which sho
 
 | # | Severity | Finding |
 |---|---|---|
-| 1 | **High** | **Client-controlled order amounts.** `POST /api/orders` trusts `items[].price`/`subtotal` from the request body; totals are not recomputed from the products table. Arbitrary-price orders possible. |
+| 1 | ~~High~~ **Fixed** | ~~Client-controlled order amounts.~~ `POST /api/orders` now reads prices from `products`, validates stock under `FOR UPDATE` row locks, and creates orders + stock decrements in one atomic transaction. `OrderItemIn` no longer accepts client `price`/`subtotal`. |
 | 2 | **High** | **Admin auth is client-side only.** No Next.js middleware; `/admin` pages (some server components) are SSR-rendered and their data fetches are often public. Protection is layout-level; a direct request can render admin UI (write ops still blocked server-side, but the dashboard/products/tutorials pages are server components hitting public endpoints). |
 | 3 | **High** | **Access tokens in localStorage.** JWT (30-day) stored in localStorage → exfiltratable by any XSS. No httpOnly access cookie; refresh cookie unused by client. |
 | 4 | **Medium** | **Login has no rate limiting.** OTP endpoints are limited (10–20/hour), login is not → brute-force surface. |
@@ -974,7 +977,7 @@ The admin is a client-rendered route group behind `/admin/layout.tsx`, which sho
 - IPs hashed, bots filtered, analytics paths skipped.
 
 ### Recommendations (priority order)
-1. Recompute order totals server-side from `products.price × quantity`; validate stock; decrement stock transactionally.
+1. ~~Recompute order totals server-side from `products.price × quantity`; validate stock; decrement stock transactionally.~~ **Done** — see `/api/orders` (server-side pricing, row-locked stock validation + decrement, atomic transaction, restock on cancel).
 2. Add Next.js middleware enforcing admin auth server-side (verify JWT for `/admin/*`).
 3. Move access token to an httpOnly cookie (or shorten TTL + add refresh flow on the client).
 4. Rate-limit `/auth/login` and contact/analytics endpoints; add captcha to contact.

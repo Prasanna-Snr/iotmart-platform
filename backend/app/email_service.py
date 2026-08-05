@@ -351,3 +351,193 @@ async def send_contact_email(
         None, _send_contact_sync,
         to_email, sender_name, sender_email, subject, message,
     )
+
+
+# ─── Customer Order Notifications ────────────────────────────────────────────
+
+def _build_customer_order_message(
+    to_email: str,
+    order_number: str,
+    customer_name: str,
+    items: list,
+    subtotal: float,
+    shipping_cost: float,
+    total: float,
+    shipping_address: dict,
+) -> MIMEMultipart:
+    """Order confirmation email addressed to the customer."""
+    site_name = settings.site_name
+    msg = MIMEMultipart("alternative")
+    msg["Subject"] = f"[{site_name}] Order Confirmed: {order_number}"
+    msg["From"] = settings.smtp_from_email
+    msg["To"] = to_email
+
+    items_rows = "".join(
+        f"<tr>"
+        f"<td style='padding:8px;border-bottom:1px solid #F0E9E3'>{i.get('product_name', '')}</td>"
+        f"<td style='padding:8px;border-bottom:1px solid #F0E9E3;text-align:center'>{i.get('quantity', '')}</td>"
+        f"<td style='padding:8px;border-bottom:1px solid #F0E9E3;text-align:right'>Rs. {i.get('subtotal', 0):,.0f}</td>"
+        f"</tr>"
+        for i in items
+    )
+
+    addr = shipping_address
+    addr_line = ", ".join(filter(None, [
+        addr.get("address_line1"), addr.get("address_line2"),
+        addr.get("city"), addr.get("state"),
+    ]))
+    shipping_display = "Free" if shipping_cost == 0 else f"Rs. {shipping_cost:,.0f}"
+
+    html = f"""\
+<html>
+  <body style="font-family:sans-serif;color:#11100E;max-width:600px;margin:0 auto;padding:24px">
+    <div style="text-align:center;margin-bottom:24px">
+      <span style="font-size:22px;font-weight:700">IoT<span style="color:#A67D45">Mart</span></span>
+    </div>
+    <h2 style="font-size:20px;color:#5D1C34;margin-bottom:4px">Thank you for your order!</h2>
+    <p style="color:#899581;margin-bottom:24px;font-size:14px">
+      Hi {customer_name}, your order <strong style="color:#11100E">{order_number}</strong>
+      is confirmed and being prepared. We'll email you as its status changes.
+    </p>
+    <table style="width:100%;border-collapse:collapse;margin-bottom:20px">
+      <tr style="background:#F0E9E3">
+        <th style="padding:8px;text-align:left;font-size:12px;color:#899581">Product</th>
+        <th style="padding:8px;text-align:center;font-size:12px;color:#899581">Qty</th>
+        <th style="padding:8px;text-align:right;font-size:12px;color:#899581">Subtotal</th>
+      </tr>
+      {items_rows}
+    </table>
+    <table style="width:100%;margin-bottom:20px;font-size:14px">
+      <tr><td style="color:#899581;padding:4px 0">Subtotal</td><td style="text-align:right">Rs. {subtotal:,.0f}</td></tr>
+      <tr><td style="color:#899581;padding:4px 0">Shipping</td><td style="text-align:right">{shipping_display}</td></tr>
+      <tr style="font-weight:700;font-size:16px">
+        <td style="padding:8px 0 4px">Total</td>
+        <td style="text-align:right;color:#5D1C34">Rs. {total:,.0f}</td>
+      </tr>
+    </table>
+    <div style="background:#F0E9E3;border-radius:10px;padding:16px;margin-bottom:20px;font-size:13px">
+      <p style="margin:0 0 4px;font-weight:600">Shipping To</p>
+      <p style="margin:0">{addr.get('first_name', '')} {addr.get('last_name', '')}</p>
+      <p style="margin:0;color:#899581">{addr_line}</p>
+      <p style="margin:0;color:#899581">{addr.get('phone', '')}</p>
+    </div>
+    <p style="font-size:12px;color:#899581;text-align:center">
+      Questions about your order? Just reply to this email.
+    </p>
+  </body>
+</html>"""
+
+    plain = (
+        f"Thank you for your order {order_number}!\n"
+        f"Total: Rs. {total:,.0f}\n"
+        f"Shipping to: {addr_line}\n"
+        f"Payment: Cash on Delivery\n"
+        f"We'll email you as your order status changes."
+    )
+    msg.attach(MIMEText(plain, "plain"))
+    msg.attach(MIMEText(html, "html"))
+    return msg
+
+
+def _send_customer_order_sync(
+    to_email: str,
+    order_number: str,
+    customer_name: str,
+    items: list,
+    subtotal: float,
+    shipping_cost: float,
+    total: float,
+    shipping_address: dict,
+) -> None:
+    if not settings.smtp_host:
+        log.warning("[DEV] Order confirmation %s for %s — SMTP not configured, skipping email", order_number, to_email)
+        print(f"\n[DEV] Order confirmation: {order_number} | {to_email} | Rs. {total:,.0f}\n", flush=True)
+        return
+    msg = _build_customer_order_message(
+        to_email, order_number, customer_name,
+        items, subtotal, shipping_cost, total, shipping_address,
+    )
+    try:
+        _smtp_send(to_email, msg)
+        log.info("Order confirmation sent to %s for order %s", to_email, order_number)
+    except smtplib.SMTPException as exc:
+        log.error("Failed to send order confirmation for %s: %s", order_number, exc)
+
+
+async def send_order_confirmation_email(
+    to_email: str,
+    order_number: str,
+    customer_name: str,
+    items: list,
+    subtotal: float,
+    shipping_cost: float,
+    total: float,
+    shipping_address: dict,
+) -> None:
+    """Non-blocking order confirmation email to the customer. Never raises."""
+    loop = asyncio.get_event_loop()
+    await loop.run_in_executor(
+        None, _send_customer_order_sync,
+        to_email, order_number, customer_name,
+        items, subtotal, shipping_cost, total, shipping_address,
+    )
+
+
+def _build_order_status_message(to_email: str, order_number: str, status: str) -> MIMEMultipart:
+    site_name = settings.site_name
+    labels = {
+        "processing": ("Order Processing", "Your order is now being processed by our team."),
+        "delivered": ("Order Delivered", "Great news! Your order has been delivered."),
+        "cancelled": ("Order Cancelled", "Your order has been cancelled."),
+    }
+    title, body = labels.get(status, (status.title(), f"Your order status has been updated to {status}."))
+    color = "#5D1C34" if status == "processing" else "#2E7D32" if status == "delivered" else "#C62828"
+
+    msg = MIMEMultipart("alternative")
+    msg["Subject"] = f"[{site_name}] {title}: {order_number}"
+    msg["From"] = settings.smtp_from_email
+    msg["To"] = to_email
+
+    html = f"""\
+<html>
+  <body style="font-family:sans-serif;color:#11100E;max-width:480px;margin:0 auto;padding:24px">
+    <div style="text-align:center;margin-bottom:24px">
+      <span style="font-size:22px;font-weight:700">IoT<span style="color:#A67D45">Mart</span></span>
+    </div>
+    <h2 style="font-size:20px;color:{color};margin-bottom:8px">{title}</h2>
+    <p style="color:#899581;margin-bottom:24px">Order <strong style="color:#11100E">{order_number}</strong></p>
+    <div style="background:#F0E9E3;border-radius:12px;padding:20px;text-align:center;font-size:14px">
+      {body}
+    </div>
+    <p style="font-size:12px;color:#899581;margin-top:24px;text-align:center">
+      Track your orders anytime in your account dashboard.
+    </p>
+  </body>
+</html>"""
+
+    plain = f"{title}\nOrder {order_number}\n{body}"
+    msg.attach(MIMEText(plain, "plain"))
+    msg.attach(MIMEText(html, "html"))
+    return msg
+
+
+def _send_order_status_sync(to_email: str, order_number: str, status: str) -> None:
+    if not settings.smtp_host:
+        log.warning("[DEV] Order %s status change (%s) for %s — SMTP not configured, skipping email", order_number, status, to_email)
+        print(f"\n[DEV] Order status: {order_number} → {status} | {to_email}\n", flush=True)
+        return
+    msg = _build_order_status_message(to_email, order_number, status)
+    try:
+        _smtp_send(to_email, msg)
+        log.info("Order status email sent to %s for order %s (%s)", to_email, order_number, status)
+    except smtplib.SMTPException as exc:
+        log.error("Failed to send status email for %s: %s", order_number, exc)
+
+
+async def send_order_status_email(to_email: str, order_number: str, status: str) -> None:
+    """Non-blocking status notification email to the customer. Never raises."""
+    loop = asyncio.get_event_loop()
+    await loop.run_in_executor(
+        None, _send_order_status_sync,
+        to_email, order_number, status,
+    )
