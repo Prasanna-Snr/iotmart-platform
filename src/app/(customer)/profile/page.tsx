@@ -2,31 +2,21 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { MapPin, CreditCard, Heart, Gift } from "lucide-react";
 
 import { useCustomerAuth } from "@/lib/customerAuth";
-import { ordersApi } from "@/lib/api";
+import { ordersApi, rewardsApi } from "@/lib/api";
 
 import ProfileSidebar    from "@/components/profile/ProfileSidebar";
 import ProfileWelcome    from "@/components/profile/ProfileWelcome";
 import AccountOverview   from "@/components/profile/AccountOverview";
 import OrderHistoryPanel from "@/components/profile/OrderHistoryPanel";
 import AccountSettingsPanel from "@/components/profile/AccountSettingsPanel";
+import AddressesPanel    from "@/components/profile/AddressesPanel";
+import PaymentPanel      from "@/components/profile/PaymentPanel";
+import WishlistPanel     from "@/components/profile/WishlistPanel";
+import RewardsPanel      from "@/components/profile/RewardsPanel";
 
 import type { Section } from "@/components/profile/ProfileSidebar";
-
-// ── Placeholder panels for coming-soon sections ─────────────────────────────
-function ComingSoon({ icon, title, description }: { icon: React.ReactNode; title: string; description: string }) {
-  return (
-    <div className="bg-white border border-[#CDBBAD]/50 rounded-xl p-16 text-center">
-      <div className="w-14 h-14 bg-[#F0E9E3] rounded-2xl flex items-center justify-center mx-auto mb-4 text-[#CDBBAD]">
-        {icon}
-      </div>
-      <h3 className="font-semibold text-[#11100E] mb-1">{title}</h3>
-      <p className="text-sm text-[#899581]">{description}</p>
-    </div>
-  );
-}
 
 export default function ProfilePage() {
   const router = useRouter();
@@ -37,6 +27,7 @@ export default function ProfilePage() {
   const [orders, setOrders]               = useState<any[]>([]);
   const [ordersLoading, setOrdersLoading] = useState(false);
   const [ordersError, setOrdersError]     = useState("");
+  const [rewardPoints, setRewardPoints]   = useState<number | null>(null);
 
   // Local mutable copy of display name
   const [localName, setLocalName] = useState("");
@@ -60,6 +51,15 @@ export default function ProfilePage() {
       .then(setOrders)
       .catch((e: any) => setOrdersError(e.message ?? "Failed to load orders."))
       .finally(() => setOrdersLoading(false));
+  }, [token]);
+
+  // Fetch reward balance for the dashboard stat
+  useEffect(() => {
+    if (!token) return;
+    rewardsApi
+      .get(token)
+      .then((data) => setRewardPoints(data.balance ?? 0))
+      .catch(() => {});
   }, [token]);
 
   const handleLogout = () => {
@@ -120,6 +120,7 @@ export default function ProfilePage() {
                 initials={initials}
                 totalOrders={orders.length}
                 activeOrders={activeOrders}
+                rewardPoints={rewardPoints}
                 onEditProfile={() => setSection("settings")}
                 onViewOrders={() => setSection("orders")}
               />
@@ -148,40 +149,16 @@ export default function ProfilePage() {
           )}
 
           {/* Addresses */}
-          {section === "addresses" && (
-            <ComingSoon
-              icon={<MapPin size={26} />}
-              title="Saved Addresses"
-              description="Address management will be available soon."
-            />
-          )}
+          {section === "addresses" && <AddressesPanel token={token} />}
 
           {/* Payment Methods */}
-          {section === "payment" && (
-            <ComingSoon
-              icon={<CreditCard size={26} />}
-              title="Payment Methods"
-              description="Save and manage payment methods coming soon."
-            />
-          )}
+          {section === "payment" && <PaymentPanel />}
 
           {/* Wishlist */}
-          {section === "wishlist" && (
-            <ComingSoon
-              icon={<Heart size={26} />}
-              title="Your Wishlist"
-              description="Save products you love — wishlist feature coming soon."
-            />
-          )}
+          {section === "wishlist" && <WishlistPanel token={token} />}
 
           {/* Rewards */}
-          {section === "rewards" && (
-            <ComingSoon
-              icon={<Gift size={26} />}
-              title="Rewards"
-              description="Earn points on every purchase — rewards program coming soon."
-            />
-          )}
+          {section === "rewards" && <RewardsPanel token={token} />}
 
           {/* Account Settings */}
           {section === "settings" && (

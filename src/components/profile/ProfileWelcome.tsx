@@ -9,6 +9,7 @@ interface Props {
   initials: string;
   totalOrders: number;
   activeOrders: number;
+  rewardPoints?: number | null;
   onEditProfile: () => void;
   onViewOrders: () => void;
 }
@@ -20,6 +21,7 @@ export default function ProfileWelcome({
   initials,
   totalOrders,
   activeOrders,
+  rewardPoints,
   onEditProfile,
   onViewOrders,
 }: Props) {
@@ -29,7 +31,7 @@ export default function ProfileWelcome({
 
   const stats = [
     { label: "Total Orders",  value: totalOrders,  icon: <ShoppingBag size={16} className="text-[#5D1C34]" /> },
-    { label: "Reward Points", value: "—",           icon: <Zap size={16} className="text-[#A67D45]" /> },
+    { label: "Reward Points", value: rewardPoints === null || rewardPoints === undefined ? "—" : rewardPoints, icon: <Zap size={16} className="text-[#A67D45]" /> },
     { label: "Active Orders", value: activeOrders,  icon: <Clock size={16} className="text-blue-500" /> },
   ];
 

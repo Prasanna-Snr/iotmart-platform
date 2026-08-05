@@ -9,7 +9,7 @@ import { useRouter } from "next/navigation";
 import { Check, ChevronRight } from "lucide-react";
 import { useCart } from "@/context/CartContext";
 import { useCustomerAuth } from "@/lib/customerAuth";
-import { ordersApi, authApi } from "@/lib/api";
+import { ordersApi, authApi, addressesApi } from "@/lib/api";
 import Input from "@/components/ui/Input";
 import {
   formatPrice,
@@ -54,6 +54,7 @@ export default function CheckoutPage() {
   const [orderError, setOrderError] = useState("");
   const [placingOrder, setPlacingOrder] = useState(false);
   const [userEmail, setUserEmail] = useState("");
+  const [savedAddresses, setSavedAddresses] = useState<any[]>([]);
 
   // Redirect to login if not authenticated
   useEffect(() => {
@@ -68,6 +69,33 @@ export default function CheckoutPage() {
       authApi.me(token).then((u: any) => setUserEmail(u.email ?? "")).catch(() => {});
     }
   }, [token]);
+
+  // Fetch saved addresses
+  useEffect(() => {
+    if (!token) return;
+    addressesApi
+      .list(token)
+      .then((data) => {
+        setSavedAddresses(data);
+        const def = data.find((a) => a.is_default);
+        if (def) applyAddress(def);
+      })
+      .catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token]);
+
+  const applyAddress = (a: any) => {
+    const name = (a.full_name ?? "").split(" ");
+    setShipping({
+      firstName: name[0] ?? "",
+      lastName: name.slice(1).join(" ") ?? "",
+      phone: a.phone ?? "",
+      addressLine1: a.address_line1 ?? "",
+      addressLine2: a.address_line2 ?? "",
+      city: a.city ?? "",
+      state: a.state ?? "",
+    });
+  };
 
   const shippingCost = calculateShipping(subtotal, freeShippingThreshold, defaultShippingCost);
   const total = calculateTotal(subtotal, freeShippingThreshold, defaultShippingCost);
@@ -182,6 +210,39 @@ export default function CheckoutPage() {
         <div className="lg:col-span-2">
           {step === 1 && (
             <form onSubmit={handleStep1Submit} noValidate>
+              {savedAddresses.length > 0 && (
+                <div className="bg-white rounded-xl border border-[#CDBBAD]/50 p-6 mb-5">
+                  <h2 className="text-base font-bold text-[#11100E] mb-3">
+                    Use a saved address
+                  </h2>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    {savedAddresses.map((a) => (
+                      <button
+                        type="button"
+                        key={a.id}
+                        onClick={() => applyAddress(a)}
+                        className={`text-left p-3 rounded-lg border text-sm transition-colors ${
+                          shipping.addressLine1 === a.address_line1 && shipping.city === a.city
+                            ? "border-[#5D1C34] bg-[#5D1C34]/5"
+                            : "border-[#CDBBAD]/50 hover:border-[#A67D45]/50"
+                        }`}
+                      >
+                        <span className="flex items-center gap-2 font-medium text-[#11100E]">
+                          {a.label}
+                          {a.is_default && (
+                            <span className="text-[10px] font-medium bg-green-100 text-green-700 px-1.5 py-0.5 rounded-full">
+                              Default
+                            </span>
+                          )}
+                        </span>
+                        <span className="block text-xs text-[#899581] mt-1 line-clamp-1">
+                          {a.address_line1}, {a.city}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
               <div className="bg-white rounded-xl border border-[#CDBBAD]/50 p-6">
                 <h2 className="text-lg font-bold text-[#11100E] mb-5">
                   Shipping Information

@@ -10,6 +10,7 @@ from app.schemas.orders import OrderCreate, OrderStatusUpdate, OrderOut
 from app.security import get_current_user, get_current_admin
 from app.email_service import send_new_order_email
 from app.config import settings
+from app.routers.rewards import points_for_total
 
 router = APIRouter()
 
@@ -112,4 +113,18 @@ async def update_order_status(id: str, body: OrderStatusUpdate, db: AsyncSession
     order.status = body.status
     if body.status == "delivered":
         order.payment_status = "paid"
+        if order.user_id and order.total > 0:
+            from app.models.models import RewardTransaction
+            existing = (await db.execute(
+                select(RewardTransaction).where(RewardTransaction.order_id == order.id)
+            )).scalar_one_or_none()
+            if not existing:
+                points = points_for_total(order.total)
+                if points > 0:
+                    db.add(RewardTransaction(
+                        user_id=order.user_id,
+                        points=points,
+                        order_id=order.id,
+                        description=f"Reward points for order {order.order_number}",
+                    ))
     return OrderOut.model_validate(order)

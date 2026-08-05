@@ -285,6 +285,44 @@ export const adminApi = {
     apiFetch("admin/dashboard", { token }),
 };
 
+// ─── Newsletter ───────────────────────────────────────────────────────────────
+
+export const newsletterApi = {
+  subscribe: (email: string): Promise<any> =>
+    apiFetch("newsletter/subscribe", { method: "POST", body: JSON.stringify({ email }) }),
+};
+
+// ─── Wishlist ────────────────────────────────────────────────────────────────
+
+export const wishlistApi = {
+  list: (token: string): Promise<any[]> =>
+    apiFetch("wishlist", { token }),
+  add: (productId: string, token: string): Promise<any> =>
+    apiFetch(`wishlist/${productId}`, { method: "POST", token }),
+  remove: (productId: string, token: string): Promise<void> =>
+    apiFetch(`wishlist/${productId}`, { method: "DELETE", token }),
+};
+
+// ─── Addresses ────────────────────────────────────────────────────────────────
+
+export const addressesApi = {
+  list: (token: string): Promise<any[]> =>
+    apiFetch("addresses", { token }),
+  create: (body: any, token: string): Promise<any> =>
+    apiFetch("addresses", { method: "POST", body: JSON.stringify(body), token }),
+  update: (id: string, body: any, token: string): Promise<any> =>
+    apiFetch(`addresses/${id}`, { method: "PUT", body: JSON.stringify(body), token }),
+  delete: (id: string, token: string): Promise<void> =>
+    apiFetch(`addresses/${id}`, { method: "DELETE", token }),
+};
+
+// ─── Rewards ──────────────────────────────────────────────────────────────────
+
+export const rewardsApi = {
+  get: (token: string): Promise<any> =>
+    apiFetch("rewards", { token }),
+};
+
 // ─── Analytics ────────────────────────────────────────────────────────────────
 
 export const analyticsApi = {

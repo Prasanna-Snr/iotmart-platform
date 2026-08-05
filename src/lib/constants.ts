@@ -60,8 +60,6 @@ export const FOOTER_LINKS = {
   company: [
     { label: "About Us", href: "/about" },
     { label: "Contact", href: "/contact" },
-    { label: "Careers", href: "/careers" },
-    { label: "Blog", href: "/blog" },
   ],
   products: [
     { label: "Sensors", href: "/products?category=sensors" },

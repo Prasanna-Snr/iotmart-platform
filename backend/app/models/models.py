@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime, timezone
 from sqlalchemy import (
     String, Text, Boolean, Integer, Float, DateTime,
-    ForeignKey, Enum as SAEnum, ARRAY
+    ForeignKey, Enum as SAEnum, ARRAY, UniqueConstraint
 )
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -311,3 +311,62 @@ class OnlineVisitor(Base):
     path:         Mapped[str]       = mapped_column(String(2048), nullable=False)
     last_seen:    Mapped[datetime]  = mapped_column(DateTime(timezone=True), default=utcnow, onupdate=utcnow, index=True)
     created_at:   Mapped[datetime]  = mapped_column(DateTime(timezone=True), default=utcnow)
+
+
+# ─── Newsletter ───────────────────────────────────────────────────────────────
+
+class NewsletterSubscriber(Base):
+    __tablename__ = "newsletter_subscribers"
+
+    id:         Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    email:      Mapped[str]       = mapped_column(String(255), unique=True, nullable=False, index=True)
+    subscribed: Mapped[bool]      = mapped_column(Boolean, default=True, nullable=False)
+    created_at: Mapped[datetime]  = mapped_column(DateTime(timezone=True), default=utcnow)
+
+
+# ─── Wishlist ─────────────────────────────────────────────────────────────────
+
+class WishlistItem(Base):
+    __tablename__ = "wishlist_items"
+    __table_args__ = (UniqueConstraint("user_id", "product_id", name="uq_wishlist_user_product"),)
+
+    id:         Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id:    Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    product_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("products.id", ondelete="CASCADE"), nullable=False)
+    created_at: Mapped[datetime]  = mapped_column(DateTime(timezone=True), default=utcnow)
+
+    product: Mapped["Product"] = relationship("Product")
+
+
+# ─── Saved Addresses ──────────────────────────────────────────────────────────
+
+class SavedAddress(Base):
+    __tablename__ = "saved_addresses"
+
+    id:            Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id:       Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    label:         Mapped[str]       = mapped_column(String(100), default="Home")
+    full_name:     Mapped[str]       = mapped_column(String(255), nullable=False)
+    phone:         Mapped[str]       = mapped_column(String(50), nullable=False)
+    address_line1: Mapped[str]       = mapped_column(String(255), nullable=False)
+    address_line2: Mapped[str]       = mapped_column(String(255), default="")
+    city:          Mapped[str]       = mapped_column(String(120), nullable=False)
+    state:         Mapped[str]       = mapped_column(String(120), nullable=False)
+    zip_code:      Mapped[str]       = mapped_column(String(20), default="")
+    country:       Mapped[str]       = mapped_column(String(120), default="")
+    is_default:    Mapped[bool]      = mapped_column(Boolean, default=False)
+    created_at:    Mapped[datetime]  = mapped_column(DateTime(timezone=True), default=utcnow)
+
+
+# ─── Rewards ──────────────────────────────────────────────────────────────────
+
+class RewardTransaction(Base):
+    """Signed point ledger entry. Positive = earned, negative = spent/voided."""
+    __tablename__ = "reward_transactions"
+
+    id:          Mapped[uuid.UUID]      = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id:     Mapped[uuid.UUID]      = mapped_column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    points:      Mapped[int]            = mapped_column(Integer, nullable=False)
+    description: Mapped[str]            = mapped_column(Text, default="")
+    order_id:    Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
+    created_at:  Mapped[datetime]       = mapped_column(DateTime(timezone=True), default=utcnow)
