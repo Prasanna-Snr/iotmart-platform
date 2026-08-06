@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { usePathname } from "next/navigation";
+import { useState, useEffect, useCallback } from "react";
+import { usePathname, useRouter } from "next/navigation";
 import { Menu, PanelLeftClose, PanelLeftOpen, LogOut } from "lucide-react";
 import AdminSidebar from "@/components/admin/AdminSidebar";
 import AdminLoginModal from "@/components/admin/AdminLoginModal";
@@ -9,7 +9,8 @@ import { useAdminAuth } from "@/lib/adminAuth";
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const { token, user, clearAuth, ready } = useAdminAuth();
+  const router   = useRouter();
+  const { user, setAuth, clearAuth, ready } = useAdminAuth();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [collapsed, setCollapsed]     = useState(false);
 
@@ -19,7 +20,30 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     setCollapsed(isPageEditor);
   }, [pathname]);
 
-  // Wait until localStorage is read before rendering
+  // When session expires (user becomes null after being set), stay on /admin
+  // The login modal will automatically show because user is null.
+  // If you want to show an "expired" message you could set state here.
+  useEffect(() => {
+    if (ready && !user) {
+      // Already on /admin — login modal will show automatically.
+      // Nothing else needed; the modal is rendered below.
+    }
+  }, [ready, user]);
+
+  // Called by AdminLoginModal on successful login
+  const handleLogin = useCallback((accessToken: string, adminUser: any) => {
+    setAuth(accessToken, adminUser);
+    // setAuth updates token state → this component re-renders → modal unmounts
+    // → admin panel shows. No manual reload needed.
+    router.refresh(); // refresh server components data
+  }, [setAuth, router]);
+
+  const handleLogout = useCallback(() => {
+    clearAuth();
+    // user becomes null → re-render → login modal shows automatically
+  }, [clearAuth]);
+
+  // Wait until localStorage is read
   if (!ready) {
     return (
       <div className="flex h-screen items-center justify-center bg-[#F0E9E3]">
@@ -28,9 +52,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     );
   }
 
-  // Not logged in — show login modal
-  if (!token) {
-    return <AdminLoginModal />;
+  // Not logged in or session expired — show login modal
+  if (!user) {
+    return <AdminLoginModal onLogin={handleLogin} />;
   }
 
   return (
@@ -52,7 +76,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         {/* Top bar */}
         <header className="h-14 bg-white border-b border-[#CDBBAD]/50 flex items-center justify-between px-4 flex-shrink-0">
-          {/* Mobile menu */}
           <button
             onClick={() => setSidebarOpen(true)}
             className="lg:hidden p-2 rounded-lg text-[#899581] hover:bg-[#F0E9E3]"
@@ -61,7 +84,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             <Menu size={18} />
           </button>
 
-          {/* Desktop collapse toggle */}
           <button
             onClick={() => setCollapsed((v) => !v)}
             className="hidden lg:flex p-2 rounded-lg text-[#899581] hover:bg-[#F0E9E3] transition-colors"
@@ -76,7 +98,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               {user?.name?.[0]?.toUpperCase() ?? "A"}
             </div>
             <button
-              onClick={clearAuth}
+              onClick={handleLogout}
               className="p-2 rounded-lg text-[#899581] hover:text-red-500 hover:bg-red-50 transition-colors"
               title="Logout"
               aria-label="Logout"

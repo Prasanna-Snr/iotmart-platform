@@ -43,7 +43,7 @@ export default function Navbar() {
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     if (searchQuery.trim()) {
-      router.push(`/products?search=${encodeURIComponent(searchQuery.trim())}`);
+      router.push(`/search?q=${encodeURIComponent(searchQuery.trim())}`);
       setSearchOpen(false);
       setSearchQuery("");
     }
@@ -103,7 +103,7 @@ export default function Navbar() {
                     type="search"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    placeholder="Search products…"
+                    placeholder="Search products & tutorials…"
                     className="bg-transparent text-white placeholder:text-[#899581] text-sm outline-none w-48"
                     onBlur={() => {
                       if (!searchQuery) setSearchOpen(false);
@@ -183,7 +183,7 @@ export default function Navbar() {
                     type="search"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    placeholder="Search products…"
+                    placeholder="Search products & tutorials…"
                     className="flex-1 bg-white/10 text-white placeholder:text-[#899581] text-sm rounded-lg px-3 py-2 outline-none border border-white/10 focus:border-[#A67D45]"
                   />
                   <button

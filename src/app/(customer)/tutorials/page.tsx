@@ -1,14 +1,22 @@
-import type { Metadata } from "next";
 import Link from "next/link";
 import { BookOpen } from "lucide-react";
 import { tutorialsApi } from "@/lib/api";
-import TutorialCard from "@/components/tutorial/TutorialCard";
-import { DIFFICULTY_COLORS } from "@/lib/constants";
 
-export const metadata: Metadata = {
-  title: "IoT Project Tutorials",
-  description: "Free step-by-step IoT project tutorials for beginners to advanced makers.",
-};
+// ISR via per-fetch `next.revalidate` in api.ts (route-segment `revalidate`
+// was removed in Next.js v16).
+import TutorialCard from "@/components/tutorial/TutorialCard";
+import PaginationLinks from "@/components/ui/PaginationLinks";
+import { DIFFICULTY_COLORS } from "@/lib/constants";
+import { generatePageMetadata, tutorialListJsonLd, jsonLdString } from "@/lib/seo";
+
+export const metadata = generatePageMetadata(
+  "Free IoT Project Tutorials — Arduino, ESP32, Raspberry Pi | IoTMart",
+  {
+    description:
+      "Step-by-step IoT project tutorials for all skill levels. Learn to build with Arduino, ESP32, Raspberry Pi, sensors and more. Free tutorials for makers in Nepal.",
+    path: "/tutorials",
+  }
+);
 
 interface PageProps { searchParams: Promise<Record<string, string>> }
 
@@ -17,7 +25,7 @@ export default async function TutorialsPage({ searchParams }: PageProps) {
   const page = Number(params.page ?? 1);
   const PAGE_SIZE = 9;
 
-  const [data, categories, featured] = await Promise.all([
+  const [data, categories] = await Promise.all([
     tutorialsApi.list({
       category:   params.category,
       difficulty: params.difficulty,
@@ -27,15 +35,22 @@ export default async function TutorialsPage({ searchParams }: PageProps) {
       page_size:  PAGE_SIZE,
     }).catch(() => ({ items: [], total: 0, page: 1, page_size: PAGE_SIZE })),
     tutorialsApi.categories().catch(() => []),
-    tutorialsApi.list({ featured: true, published: true, page_size: 4 })
-      .then((r) => r.items).catch(() => []),
   ]);
 
   const { items, total } = data;
   const totalPages = Math.ceil(total / PAGE_SIZE);
 
   return (
-    <div className="container-custom py-8">
+    <>
+      {items.length > 0 && (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: jsonLdString(tutorialListJsonLd(items)),
+          }}
+        />
+      )}
+      <div id="main-content" className="container-custom py-8">
       <div className="text-center mb-10">
         <span className="inline-flex items-center gap-2 bg-[#5D1C34]/10 text-[#5D1C34] text-sm font-medium px-3 py-1 rounded-full mb-3">
           <BookOpen size={14} /> Free Tutorials
@@ -74,54 +89,39 @@ export default async function TutorialsPage({ searchParams }: PageProps) {
             </Link>
           );
         })}
-        {params.difficulty && <Link href="/tutorials" className="px-3 py-1 rounded-full text-xs text-[#5D1C34] hover:underline">Clear ×</Link>}
+        {params.difficulty && (
+          <Link href="/tutorials" className="px-3 py-1 rounded-full text-xs text-[#5D1C34] hover:underline">
+            Clear ×
+          </Link>
+        )}
       </div>
 
-      <div className="flex flex-col lg:flex-row gap-8">
-        <div className="flex-1 min-w-0">
-          <p className="text-sm text-[#899581] mb-4">{total} tutorial{total !== 1 ? "s" : ""} found</p>
+      <p className="text-sm text-[#899581] mb-4">{total} tutorial{total !== 1 ? "s" : ""} found</p>
 
-          {items.length === 0 ? (
-            <div className="bg-white rounded-xl border border-[#CDBBAD]/50 p-12 text-center">
-              <BookOpen size={48} className="mx-auto text-[#CDBBAD] mb-4" />
-              <p className="text-[#899581]">No tutorials found.</p>
-              <Link href="/tutorials" className="mt-3 inline-block text-[#5D1C34] text-sm hover:underline">Clear filters</Link>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5">
-              {items.map((tut: any) => <TutorialCard key={tut.id} tutorial={tut} />)}
-            </div>
-          )}
-
-          {totalPages > 1 && (
-            <div className="flex justify-center gap-1 mt-8 flex-wrap">
-              {Array.from({ length: totalPages }, (_, i) => {
-                const p = { ...params, page: String(i + 1) };
-                return (
-                  <Link key={i} href={`/tutorials?${new URLSearchParams(p).toString()}`}
-                    className={`min-w-[36px] h-9 px-3 rounded-lg text-sm font-medium border inline-flex items-center justify-center transition-colors ${page === i + 1 ? "bg-[#5D1C34] text-white border-[#5D1C34]" : "border-[#CDBBAD] text-[#11100E] hover:bg-[#5D1C34] hover:text-white"}`}>
-                    {i + 1}
-                  </Link>
-                );
-              })}
-            </div>
-          )}
+      {items.length === 0 ? (
+        <div className="bg-white rounded-xl border border-[#CDBBAD]/50 p-12 text-center">
+          <BookOpen size={48} className="mx-auto text-[#CDBBAD] mb-4" />
+          <p className="text-[#899581]">No tutorials found.</p>
+          <Link href="/tutorials" className="mt-3 inline-block text-[#5D1C34] text-sm hover:underline">
+            Clear filters
+          </Link>
         </div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+          {items.map((tut: any) => <TutorialCard key={tut.id} tutorial={tut} />)}
+        </div>
+      )}
 
-        <aside className="lg:w-64 flex-shrink-0">
-          <div className="bg-white rounded-xl border border-[#CDBBAD]/50 p-4">
-            <h2 className="font-semibold text-[#11100E] mb-3">Featured Tutorials</h2>
-            <div className="space-y-3">
-              {featured.map((tut: any) => (
-                <Link key={tut.id} href={`/tutorials/${tut.slug}`} className="block group">
-                  <p className="text-sm font-medium text-[#11100E] group-hover:text-[#5D1C34] line-clamp-2">{tut.title}</p>
-                  <p className="text-xs text-[#899581] mt-0.5">{tut.difficulty} · {tut.estimated_time}</p>
-                </Link>
-              ))}
-            </div>
-          </div>
-        </aside>
-      </div>
+      {totalPages > 1 && (
+        <PaginationLinks
+          currentPage={page}
+          totalPages={totalPages}
+          basePath="/tutorials"
+          params={params}
+          className="mt-8"
+        />
+      )}
     </div>
+    </>
   );
 }

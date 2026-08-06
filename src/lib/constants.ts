@@ -5,9 +5,8 @@ export const SITE_DESCRIPTION =
   process.env.NEXT_PUBLIC_SITE_DESCRIPTION ??
   "Your one-stop shop for IoT gadgets, sensors, and development boards";
 
-export const CURRENCY = "USD";
-export const CURRENCY_SYMBOL = "$";
-export const TAX_RATE = 0.08; // 8%
+export const CURRENCY = "NPR";
+export const CURRENCY_SYMBOL = "Rs. ";
 export const FREE_SHIPPING_THRESHOLD = 50;
 export const SHIPPING_COST = 5.99;
 export const ITEMS_PER_PAGE = 12;
@@ -39,7 +38,7 @@ export const DIFFICULTY_COLORS: Record<string, string> = {
 export const ORDER_STATUS_COLORS: Record<string, string> = {
   pending: "bg-amber-100 text-amber-800",
   processing: "bg-blue-100 text-blue-800",
-  shipped: "bg-purple-100 text-purple-800",
+  shipped: "bg-indigo-100 text-indigo-800",
   delivered: "bg-green-100 text-green-800",
   cancelled: "bg-red-100 text-red-800",
   refunded: "bg-gray-100 text-gray-800",
@@ -63,8 +62,6 @@ export const FOOTER_LINKS = {
   company: [
     { label: "About Us", href: "/about" },
     { label: "Contact", href: "/contact" },
-    { label: "Careers", href: "/careers" },
-    { label: "Blog", href: "/blog" },
   ],
   products: [
     { label: "Sensors", href: "/products?category=sensors" },
@@ -102,8 +99,8 @@ export const ADMIN_NAV = [
     children: [
       { label: "All Products", href: "/admin/products" },
       { label: "Add Product", href: "/admin/products/new" },
-      { label: "Categories", href: "/admin/products/categories" },
-      { label: "Brands", href: "/admin/products/brands" },
+      { label: "Categories", href: "/admin/categories" },
+      { label: "Brands", href: "/admin/brands" },
     ],
   },
   {

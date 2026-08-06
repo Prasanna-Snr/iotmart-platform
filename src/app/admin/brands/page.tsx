@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { Plus, Trash2, AlertCircle, CheckCircle, Box, Edit2, X } from "lucide-react";
 import Input from "@/components/ui/Input";
 import { brandsApi } from "@/lib/api";
-import { getAdminToken } from "@/lib/adminAuth";
+import { getAdminSession } from "@/lib/adminAuth";
 import { slugify } from "@/lib/utils";
 
 interface BrandItem {
@@ -89,7 +89,7 @@ export default function AdminBrandsPage() {
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!validateCreate()) return;
-    const token = getAdminToken();
+    const token = getAdminSession()?.id ?? null;
     if (!token) { setCreateError("Not authenticated."); return; }
     setCreateLoading(true);
     setCreateError("");
@@ -140,7 +140,7 @@ export default function AdminBrandsPage() {
   const handleEdit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!validateEdit() || !editId) return;
-    const token = getAdminToken();
+    const token = getAdminSession()?.id ?? null;
     if (!token) { setEditError("Not authenticated."); return; }
     setEditLoading(true);
     setEditError("");
@@ -167,7 +167,7 @@ export default function AdminBrandsPage() {
 
   const handleDelete = async (brand: BrandItem) => {
     if (!confirm(`Delete brand "${brand.name}"? This cannot be undone.`)) return;
-    const token = getAdminToken();
+    const token = getAdminSession()?.id ?? null;
     if (!token) { setDeleteError("Not authenticated."); return; }
     setDeletingId(brand.id);
     setDeleteError("");

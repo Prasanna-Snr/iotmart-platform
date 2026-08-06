@@ -9,7 +9,7 @@ import Textarea from "@/components/ui/Textarea";
 import Select from "@/components/ui/Select";
 import ImagePicker from "@/components/admin/ImagePicker";
 import { productsApi, categoriesApi, brandsApi } from "@/lib/api";
-import { getAdminToken } from "@/lib/adminAuth";
+import { getAdminSession } from "@/lib/adminAuth";
 import { slugify } from "@/lib/utils";
 
 interface Spec { label: string; value: string }
@@ -53,7 +53,7 @@ export default function AdminEditProductPage() {
 
   // Fetch categories, brands, and product data
   useEffect(() => {
-    const token = getAdminToken();
+    const token = getAdminSession()?.id ?? null;
 
     Promise.all([
       categoriesApi.list(),
@@ -121,7 +121,7 @@ export default function AdminEditProductPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const token = getAdminToken();
+    const token = getAdminSession()?.id ?? null;
     if (!token) {
       setApiError("Not authenticated. Please log in as admin.");
       return;
@@ -172,7 +172,7 @@ export default function AdminEditProductPage() {
   const handleDelete = async () => {
     if (!confirm(`Delete "${productName || "this product"}"? This cannot be undone.`)) return;
 
-    const token = getAdminToken();
+    const token = getAdminSession()?.id ?? null;
     if (!token) {
       setApiError("Not authenticated. Please log in as admin.");
       return;
@@ -351,7 +351,7 @@ export default function AdminEditProductPage() {
             <div className="bg-white rounded-xl border border-[#CDBBAD]/50 p-5 space-y-4">
               <h2 className="font-semibold text-[#11100E]">Pricing & Inventory</h2>
               <Input
-                label="Price ($)"
+                label="Price (Rs.)"
                 type="number"
                 min="0"
                 step="0.01"
@@ -359,7 +359,7 @@ export default function AdminEditProductPage() {
                 onChange={(e) => setField("price", e.target.value)}
               />
               <Input
-                label="Original Price ($)"
+                label="Original Price (Rs.)"
                 type="number"
                 min="0"
                 step="0.01"

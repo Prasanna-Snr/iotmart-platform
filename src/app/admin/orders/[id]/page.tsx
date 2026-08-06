@@ -13,7 +13,7 @@ import {
   CreditCard,
 } from "lucide-react";
 import { ordersApi } from "@/lib/api";
-import { getAdminToken } from "@/lib/adminAuth";
+import { getAdminSession } from "@/lib/adminAuth";
 import { formatPrice, formatDateShort } from "@/lib/utils";
 import { ORDER_STATUS_COLORS, PAYMENT_STATUS_COLORS } from "@/lib/constants";
 
@@ -39,7 +39,7 @@ export default function AdminOrderDetailPage() {
   const [saveError, setSaveError] = useState("");
 
   useEffect(() => {
-    const token = getAdminToken();
+    const token = getAdminSession()?.id ?? null;
     if (!token) {
       setError("Not authenticated.");
       setLoading(false);
@@ -56,7 +56,7 @@ export default function AdminOrderDetailPage() {
   }, [id]);
 
   const handleSave = async () => {
-    const token = getAdminToken();
+    const token = getAdminSession()?.id ?? null;
     if (!token) return;
     setSaving(true);
     setSaveError("");
@@ -168,10 +168,6 @@ export default function AdminOrderDetailPage() {
                   {order.shipping_cost === 0 ? "Free" : formatPrice(order.shipping_cost)}
                 </span>
               </div>
-              <div className="flex justify-between text-[#899581]">
-                <span>Tax</span>
-                <span>{formatPrice(order.tax)}</span>
-              </div>
               <div className="flex justify-between font-bold text-[#11100E] text-base pt-1 border-t border-[#CDBBAD]/40">
                 <span>Total</span>
                 <span>{formatPrice(order.total)}</span>
@@ -267,14 +263,13 @@ export default function AdminOrderDetailPage() {
               </div>
               <div className="flex justify-between">
                 <span className="text-[#899581]">Status</span>
-                <span
-                  className={`text-xs px-2 py-0.5 rounded-full font-medium ${
-                    PAYMENT_STATUS_COLORS[order.payment_status] ??
-                    "bg-gray-100 text-gray-600"
-                  }`}
-                >
-                  {order.payment_status}
-                </span>
+                {order.status === "delivered" ? (
+                  <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${PAYMENT_STATUS_COLORS["paid"]}`}>
+                    paid
+                  </span>
+                ) : (
+                  <span className="text-xs text-[#899581]">—</span>
+                )}
               </div>
               <div className="flex justify-between">
                 <span className="text-[#899581]">Ordered</span>

@@ -8,6 +8,7 @@ import { formatPrice, calculateDiscount, cn } from "@/lib/utils";
 import StarRating from "@/components/ui/StarRating";
 import Badge from "@/components/ui/Badge";
 import { useCart } from "@/context/CartContext";
+import { useWishlist } from "@/context/WishlistContext";
 
 interface ProductCardProps {
   product: Product;
@@ -21,6 +22,7 @@ export default function ProductCard({
   compact = false,
 }: ProductCardProps) {
   const { addToCart } = useCart();
+  const { isInWishlist, toggleWishlist } = useWishlist();
 
   // Normalise: API returns snake_case, static data uses camelCase
   const product = {
@@ -88,10 +90,18 @@ export default function ProductCard({
           </div>
           {/* Wishlist */}
           <button
-            className="absolute top-2 right-2 p-1.5 rounded-full bg-white/80 backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-opacity hover:text-red-500"
-            aria-label="Add to wishlist"
+            onClick={(e) => {
+              e.preventDefault();
+              toggleWishlist(product.id);
+            }}
+            className={`absolute top-2 right-2 p-1.5 rounded-full backdrop-blur-sm transition-colors opacity-0 group-hover:opacity-100 ${
+              isInWishlist(product.id)
+                ? "bg-[#5D1C34] text-white"
+                : "bg-white/80 hover:text-red-500"
+            }`}
+            aria-label={isInWishlist(product.id) ? "Remove from wishlist" : "Add to wishlist"}
           >
-            <Heart size={14} />
+            <Heart size={14} fill={isInWishlist(product.id) ? "currentColor" : "none"} />
           </button>
         </div>
       </Link>

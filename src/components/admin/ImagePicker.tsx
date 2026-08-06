@@ -4,7 +4,7 @@ import { useRef, useState } from "react";
 import Image from "next/image";
 import { Upload, Link as LinkIcon, X, GripVertical, ImageIcon } from "lucide-react";
 import { uploadApi } from "@/lib/api";
-import { getAdminToken } from "@/lib/adminAuth";
+import { getAdminSession } from "@/lib/adminAuth";
 
 interface ImagePickerProps {
   images: string[];
@@ -26,14 +26,13 @@ export default function ImagePicker({ images, onChange }: ImagePickerProps) {
     const files = Array.from(e.target.files ?? []);
     if (!files.length) return;
 
-    const token = getAdminToken();
-    if (!token) { setUploadError("Not authenticated."); return; }
+    if (!getAdminSession()) { setUploadError("Not authenticated."); return; }
 
     setUploading(true);
     setUploadError("");
     try {
       const urls = await Promise.all(
-        files.map((file) => uploadApi.upload(file, token).then((r) => r.url))
+        files.map((file) => uploadApi.upload(file).then((r) => r.url))
       );
       onChange([...images, ...urls]);
     } catch (err: any) {

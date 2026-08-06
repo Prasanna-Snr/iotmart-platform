@@ -1,0 +1,13 @@
+{
+  "name": "IoTMart",
+  "short_name": "IoTMart",
+  "description": "Nepal's IoT Hardware Store",
+  "start_url": "/",
+  "display": "browser",
+  "background_color": "#F0E9E3",
+  "theme_color": "#5D1C34",
+  "icons": [
+    { "src": "/favicon.ico", "sizes": "any", "type": "image/x-icon" },
+    { "src": "/apple-touch-icon.png", "sizes": "180x180", "type": "image/png" }
+  ]
+}

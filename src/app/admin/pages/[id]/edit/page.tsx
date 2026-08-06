@@ -1,10 +1,12 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, Eye, EyeOff, Save, Plus, Trash2, ChevronUp, ChevronDown, CheckCircle, Globe, FileText } from "lucide-react";
-import { getPageById, savePage, BLOCK_META, createPage, BLOCK_DEFAULTS } from "@/lib/cms-store";
+import { getAdminSession } from "@/lib/adminAuth";
+import { apiPageToLocal, localPageToApi, BLOCK_META, BLOCK_DEFAULTS } from "@/lib/cms-store";
+import { cmsApi } from "@/lib/api";
 import type { CMSPage, Block, RowBlock, ColumnBlock, BlockType } from "@/lib/cms-store";
 import BlockPreview from "@/components/admin/BlockPreview";
 import InlineBlockEditor from "@/components/admin/InlineBlockEditor";
@@ -225,15 +227,25 @@ function ContainerBlock({ block, isSelected, idx, totalBlocks, onSelect, onDelet
 export default function PageBuilderPage() {
   const { id } = useParams();
   const router = useRouter();
-  const initial = getPageById(id as string);
 
-  const [page, setPage]               = useState<CMSPage | null>(initial ? {...initial, blocks: JSON.parse(JSON.stringify(initial.blocks))} : null);
+  const [page, setPage]               = useState<CMSPage | null>(null);
+  const [pageLoading, setPageLoading] = useState(true);
+  const [loadError, setLoadError]     = useState("");
   const [selectedId, setSelectedId]   = useState<string | null>(null);
   const [showPreview, setShowPreview] = useState(false);
   const [showAddPanel, setShowAddPanel] = useState(false);
   const [saved, setSaved]             = useState(false);
   const [saving, setSaving]           = useState(false);
+  const [saveError, setSaveError]     = useState("");
   const [selection, setSelection]     = useState<SelectionInfo | null>(null);
+
+  useEffect(() => {
+    cmsApi
+      .get(id as string)
+      .then((data) => setPage(apiPageToLocal(data)))
+      .catch((e) => setLoadError(e.message ?? "Failed to load page."))
+      .finally(() => setPageLoading(false));
+  }, [id]);
 
   // Find selected block (top-level or inside any container)
   const findBlock = useCallback((blocks: Block[], id: string): Block | null => {
@@ -340,28 +352,35 @@ export default function PageBuilderPage() {
 
   const handleSave = async () => {
     if (!page) return;
+    const token = getAdminSession()?.id ?? null;
+    if (!token) return;
     setSaving(true);
-    // Save to local in-memory store
-    savePage(page);
-    // Also persist to API if available
+    setSaveError("");
     try {
-      await fetch(`/api/cms/pages/${page.id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title: page.title, slug: page.slug, status: page.status, blocks: page.blocks }),
-      });
-    } catch { /* API may not be running — local store still updated */ }
-    setSaving(false);
-    setSaved(true);
-    setTimeout(() => setSaved(false), 3000);
+      const updated = await cmsApi.save(page.id, localPageToApi(page), token);
+      setPage(apiPageToLocal(updated));
+      setSaved(true);
+      setTimeout(() => setSaved(false), 3000);
+    } catch (e: any) {
+      setSaveError(e.message ?? "Failed to save page.");
+    } finally {
+      setSaving(false);
+    }
   };
 
-  if (!page) {
+  if (pageLoading) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-[#F0E9E3]">
+        <div className="text-[#899581] text-sm">Loading page…</div>
+      </div>
+    );
+  }
+
+  if (!page || loadError) {
     return (
       <div className="text-center py-20">
-        <p className="text-[#899581] mb-3">Page not found.</p>
-        <button onClick={() => setPage(createPage())} className="text-[#5D1C34] text-sm hover:underline mr-4">Create blank page</button>
-        <Link href="/admin/pages" className="text-[#899581] text-sm hover:underline">← Back</Link>
+        <p className="text-[#899581] mb-3">{loadError || "Page not found."}</p>
+        <Link href="/admin/pages" className="text-[#899581] text-sm hover:underline">← Back to pages</Link>
       </div>
     );
   }
@@ -379,6 +398,7 @@ export default function PageBuilderPage() {
         </div>
         <div className="flex items-center gap-2 ml-auto">
           {saved && <span className="flex items-center gap-1 text-green-600 text-xs font-medium"><CheckCircle size={13}/> Saved</span>}
+          {saveError && <span className="text-red-500 text-xs font-medium">{saveError}</span>}
           <button onClick={() => setPage((p) => p ? {...p, status: p.status === "published" ? "draft" : "published"} : p)}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors ${page.status === "published" ? "bg-green-100 text-green-700 border-green-200" : "bg-amber-100 text-amber-700 border-amber-200"}`}>
             {page.status === "published" ? <Globe size={13}/> : <FileText size={13}/>}

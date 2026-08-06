@@ -1,5 +1,7 @@
+import AnalyticsBeacon from '@/components/AnalyticsBeacon';
 import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
+import { WishlistProvider } from "@/context/WishlistContext";
 
 export default function CustomerLayout({
   children,
@@ -7,10 +9,12 @@ export default function CustomerLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="flex flex-col min-h-screen">
-      <Navbar />
-      <main className="flex-1">{children}</main>
-      <Footer />
-    </div>
+    <WishlistProvider>
+      <div className="flex flex-col min-h-screen">
+        <Navbar />
+        <main className="flex-1"><AnalyticsBeacon />{children}</main>
+        <Footer />
+      </div>
+    </WishlistProvider>
   );
 }

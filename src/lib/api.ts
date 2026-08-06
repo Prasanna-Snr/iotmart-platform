@@ -4,6 +4,12 @@
  *
  * On the server (RSC) we call the internal URL directly.
  * On the client we use relative /api/* paths (handled by Next.js proxy).
+ *
+ * Auth: sessions are httpOnly cookies (access_token / refresh_token) set by
+ * the backend on login/register/refresh. The browser attaches them to /api/*
+ * requests and the proxy forwards the Cookie header, so the Authorization
+ * header is not needed. The `token` argument is accepted for compatibility
+ * with existing call sites but is intentionally ignored.
  */
 
 const BASE =
@@ -13,7 +19,7 @@ const BASE =
 
 async function apiFetch<T>(
   path: string,
-  init?: RequestInit & { token?: string }
+  init?: RequestInit & { token?: string; next?: { revalidate?: number } }
 ): Promise<T> {
   const url = typeof window === "undefined"
     ? `${BASE}/api/${path}`
@@ -21,14 +27,16 @@ async function apiFetch<T>(
 
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
-    ...(init?.token ? { Authorization: `Bearer ${init.token}` } : {}),
     ...(init?.headers as Record<string, string> | undefined),
   };
 
   const res = await fetch(url, {
     ...init,
     headers,
-    cache: init?.cache ?? "no-store",
+    // `cache` and `next.revalidate` are mutually exclusive — when a
+    // revalidate window is requested, let Next.js drive caching via
+    // `revalidate` (force-cache) instead of forcing no-store.
+    cache: init?.cache ?? (init?.next?.revalidate != null ? "force-cache" : "no-store"),
   });
 
   if (!res.ok) {
@@ -43,14 +51,34 @@ async function apiFetch<T>(
 // ─── Auth ────────────────────────────────────────────────────────────────────
 
 export const authApi = {
-  register: (body: { name: string; email: string; password: string }) =>
+  /** Step 1: request an OTP for the given email. */
+  requestOtp: (body: { email: string }): Promise<{ message: string; dev_otp?: string }> =>
+    apiFetch("auth/request-otp", { method: "POST", body: JSON.stringify(body) }),
+
+  /** Step 2: verify the OTP — returns a short-lived verification_token. */
+  verifyOtp: (body: { email: string; otp: string }): Promise<{ verification_token: string; email: string }> =>
+    apiFetch("auth/verify-otp", { method: "POST", body: JSON.stringify(body) }),
+
+  /** Step 3: complete registration using the verification_token from step 2. */
+  register: (body: { name: string; email: string; password: string; verification_token: string }) =>
     apiFetch("auth/register", { method: "POST", body: JSON.stringify(body) }),
 
   login: (body: { email: string; password: string }) =>
     apiFetch("auth/login", { method: "POST", body: JSON.stringify(body) }),
 
-  me: (token: string) =>
-    apiFetch("auth/me", { token }),
+  /** Request a password-reset OTP (returns dev_otp only in dev, no SMTP). */
+  forgotPassword: (body: { email: string }): Promise<{ message: string; dev_otp?: string }> =>
+    apiFetch("auth/forgot-password", { method: "POST", body: JSON.stringify(body) }),
+
+  /** Set a new password using the emailed OTP. */
+  resetPassword: (body: { email: string; otp: string; new_password: string }): Promise<{ message: string }> =>
+    apiFetch("auth/reset-password", { method: "POST", body: JSON.stringify(body) }),
+
+  me: (): Promise<any> =>
+    apiFetch("auth/me"),
+
+  updateMe: (body: { name?: string; phone?: string; avatar?: string; address?: object; password?: string }) =>
+    apiFetch("auth/me", { method: "PATCH", body: JSON.stringify(body) }),
 
   logout: () =>
     apiFetch("auth/logout", { method: "POST" }),
@@ -59,7 +87,7 @@ export const authApi = {
 // ─── Categories ───────────────────────────────────────────────────────────────
 
 export const categoriesApi = {
-  list: (): Promise<any[]> => apiFetch("categories"),
+  list: (): Promise<any[]> => apiFetch("categories", { next: { revalidate: 60 } }),
   get: (slug: string): Promise<any> => apiFetch(`categories/${slug}`),
   create: (body: any, token: string) =>
     apiFetch("categories", { method: "POST", body: JSON.stringify(body), token }),
@@ -72,7 +100,7 @@ export const categoriesApi = {
 // ─── Brands ───────────────────────────────────────────────────────────────────
 
 export const brandsApi = {
-  list: (): Promise<any[]> => apiFetch("brands"),
+  list: (): Promise<any[]> => apiFetch("brands", { next: { revalidate: 60 } }),
   get: (slug: string): Promise<any> => apiFetch(`brands/${slug}`),
   create: (body: any, token: string) =>
     apiFetch("brands", { method: "POST", body: JSON.stringify(body), token }),
@@ -103,10 +131,10 @@ export const productsApi = {
       if (v !== undefined && v !== null && v !== "") params.set(k, String(v));
     });
     const qs = params.toString();
-    return apiFetch(`products${qs ? "?" + qs : ""}`);
+    return apiFetch(`products${qs ? "?" + qs : ""}`, { next: { revalidate: 60 } });
   },
-  get: (slug: string): Promise<any> => apiFetch(`products/${slug}`),
-  getById: (id: string): Promise<any> => apiFetch(`products/id/${id}`),
+  get: (slug: string): Promise<any> => apiFetch(`products/${slug}`, { next: { revalidate: 60 } }),
+  getById: (id: string): Promise<any> => apiFetch(`products/id/${id}`, { next: { revalidate: 60 } }),
   create: (body: any, token: string) =>
     apiFetch("products", { method: "POST", body: JSON.stringify(body), token }),
   update: (id: string, body: any, token: string) =>
@@ -136,9 +164,9 @@ export const tutorialsApi = {
       if (v !== undefined && v !== null && v !== "") params.set(k, String(v));
     });
     const qs = params.toString();
-    return apiFetch(`tutorials${qs ? "?" + qs : ""}`);
+    return apiFetch(`tutorials${qs ? "?" + qs : ""}`, { next: { revalidate: 60 } });
   },
-  get: (slug: string): Promise<any> => apiFetch(`tutorials/${slug}`),
+  get: (slug: string): Promise<any> => apiFetch(`tutorials/${slug}`, { next: { revalidate: 60 } }),
   categories: (): Promise<any[]> => apiFetch("tutorials/categories"),
   createCategory: (body: any, token: string): Promise<any> =>
     apiFetch("tutorials/categories", { method: "POST", body: JSON.stringify(body), token }),
@@ -157,12 +185,21 @@ export const tutorialsApi = {
 // ─── Orders ───────────────────────────────────────────────────────────────────
 
 export const ordersApi = {
-  list: (token: string): Promise<any[]> =>
-    apiFetch("orders", { token }),
+  list: (token: string, params?: { page?: number; page_size?: number; status?: string; search?: string }): Promise<any> => {
+    const qs = new URLSearchParams();
+    if (params?.page !== undefined) qs.set("page", String(params.page));
+    if (params?.page_size !== undefined) qs.set("page_size", String(params.page_size));
+    if (params?.status) qs.set("status", params.status);
+    if (params?.search) qs.set("search", params.search);
+    const q = qs.toString();
+    return apiFetch(`orders${q ? "?" + q : ""}`, { token });
+  },
   get: (id: string, token: string): Promise<any> =>
     apiFetch(`orders/${id}`, { token }),
   create: (body: any, token: string) =>
     apiFetch("orders", { method: "POST", body: JSON.stringify(body), token }),
+  cancel: (id: string, token: string): Promise<any> =>
+    apiFetch(`orders/${id}/cancel`, { method: "PATCH", token }),
   updateStatus: (id: string, status: string, token: string) =>
     apiFetch(`orders/${id}/status`, { method: "PATCH", body: JSON.stringify({ status }), token }),
 };
@@ -170,8 +207,14 @@ export const ordersApi = {
 // ─── Users ────────────────────────────────────────────────────────────────────
 
 export const usersApi = {
-  list: (token: string): Promise<any[]> =>
-    apiFetch("users", { token }),
+  list: (token: string, params?: { page?: number; page_size?: number; search?: string }): Promise<any> => {
+    const qs = new URLSearchParams();
+    if (params?.page !== undefined) qs.set("page", String(params.page));
+    if (params?.page_size !== undefined) qs.set("page_size", String(params.page_size));
+    if (params?.search) qs.set("search", params.search);
+    const q = qs.toString();
+    return apiFetch(`users${q ? "?" + q : ""}`, { token });
+  },
   get: (id: string, token: string): Promise<any> =>
     apiFetch(`users/${id}`, { token }),
   update: (id: string, body: any, token: string): Promise<any> =>
@@ -180,15 +223,65 @@ export const usersApi = {
     apiFetch(`users/${id}`, { method: "DELETE", token }),
 };
 
+// ─── Coupons ──────────────────────────────────────────────────────────────────
+
+export const couponsApi = {
+  list: (token: string): Promise<any[]> => apiFetch("coupons", { token }),
+  create: (body: any, token: string): Promise<any> => apiFetch("coupons", { method: "POST", body: JSON.stringify(body), token }),
+  update: (id: string, body: any, token: string): Promise<any> => apiFetch(`coupons/${id}`, { method: "PUT", body: JSON.stringify(body), token }),
+  delete: (id: string, token: string): Promise<void> => apiFetch(`coupons/${id}`, { method: "DELETE", token }),
+  validate: (body: { code: string; subtotal: number }): Promise<{ valid: boolean; discount?: number; message?: string; code?: string }> =>
+    apiFetch("coupons/validate", { method: "POST", body: JSON.stringify(body) }),
+};
+
+// ─── Reviews ──────────────────────────────────────────────────────────────────
+
+export const reviewsApi = {
+  list: (token: string, params?: { verified?: boolean; search?: string }): Promise<any[]> => {
+    const qs = new URLSearchParams();
+    if (params?.verified !== undefined) qs.set("verified", String(params.verified));
+    if (params?.search) qs.set("search", params.search);
+    const q = qs.toString();
+    return apiFetch(`reviews${q ? "?" + q : ""}`, { token });
+  },
+  update: (id: string, body: { rating?: number; title?: string; body?: string }, token: string): Promise<any> =>
+    apiFetch(`reviews/${id}`, { method: "PATCH", body: JSON.stringify(body), token }),
+  verify: (id: string, token: string): Promise<any> =>
+    apiFetch(`reviews/${id}/verify`, { method: "PATCH", token }),
+  delete: (id: string, token: string): Promise<void> =>
+    apiFetch(`reviews/${id}`, { method: "DELETE", token }),
+};
+
+// ─── Contact ──────────────────────────────────────────────────────────────────
+
+export const contactApi = {
+  submit: (body: { name: string; email: string; subject: string; message: string }): Promise<any> =>
+    apiFetch("contact", { method: "POST", body: JSON.stringify(body) }),
+  list: (token: string): Promise<any[]> =>
+    apiFetch("contact", { token }),
+  markRead: (id: string, token: string): Promise<any> =>
+    apiFetch(`contact/${id}/read`, { method: "PATCH", token }),
+  delete: (id: string, token: string): Promise<void> =>
+    apiFetch(`contact/${id}`, { method: "DELETE", token }),
+};
+
+// ─── Settings ─────────────────────────────────────────────────────────────────
+
+export const settingsApi = {
+  get: (token?: string): Promise<{ settings: Record<string, string> }> =>
+    apiFetch("settings", token ? { token } : {}),
+  save: (settings: Record<string, string>, token: string): Promise<{ settings: Record<string, string> }> =>
+    apiFetch("settings", { method: "PUT", body: JSON.stringify({ settings }), token }),
+};
+
 // ─── Upload ───────────────────────────────────────────────────────────────────
 
 export const uploadApi = {
-  upload: async (file: File, token: string): Promise<{ url: string }> => {
+  upload: async (file: File): Promise<{ url: string }> => {
     const form = new FormData();
     form.append("file", file);
     const res = await fetch("/api/upload", {
       method: "POST",
-      headers: { Authorization: `Bearer ${token}` },
       body: form,
     });
     if (!res.ok) {
@@ -202,13 +295,96 @@ export const uploadApi = {
 // ─── CMS ──────────────────────────────────────────────────────────────────────
 
 export const cmsApi = {
-  list: (): Promise<any[]> => apiFetch("cms/pages"),
+  list: (): Promise<any[]> => apiFetch("cms/pages", { next: { revalidate: 60 } }),
   get: (id: string): Promise<any> => apiFetch(`cms/pages/${id}`),
-  getBySlug: (slug: string): Promise<any> => apiFetch(`cms/pages/slug/${slug}`),
-  create: (body: any, token: string) =>
+  getBySlug: (slug: string): Promise<any> => apiFetch(`cms/pages/slug/${slug}`, { next: { revalidate: 60 } }),
+  create: (body: any, token: string): Promise<any> =>
     apiFetch("cms/pages", { method: "POST", body: JSON.stringify(body), token }),
-  save: (id: string, body: any, token: string) =>
+  save: (id: string, body: any, token: string): Promise<any> =>
     apiFetch(`cms/pages/${id}`, { method: "PUT", body: JSON.stringify(body), token }),
-  delete: (id: string, token: string) =>
+  delete: (id: string, token: string): Promise<any> =>
     apiFetch(`cms/pages/${id}`, { method: "DELETE", token }),
+};
+
+// ─── Banners ──────────────────────────────────────────────────────────────────
+
+export const bannersApi = {
+  list: (active?: boolean): Promise<any[]> =>
+    apiFetch(`banners${active === undefined ? "" : `?active=${active}`}`, { next: { revalidate: 60 } }),
+  create: (body: any, token: string) =>
+    apiFetch("banners", { method: "POST", body: JSON.stringify(body), token }),
+  update: (id: string, body: any, token: string) =>
+    apiFetch(`banners/${id}`, { method: "PUT", body: JSON.stringify(body), token }),
+  delete: (id: string, token: string) =>
+    apiFetch(`banners/${id}`, { method: "DELETE", token }),
+};
+
+// ─── Admin dashboard ──────────────────────────────────────────────────────────
+
+export const adminApi = {
+  dashboard: (token: string): Promise<any> =>
+    apiFetch("admin/dashboard", { token }),
+};
+
+// ─── Newsletter ───────────────────────────────────────────────────────────────
+
+export const newsletterApi = {
+  subscribe: (email: string): Promise<any> =>
+    apiFetch("newsletter/subscribe", { method: "POST", body: JSON.stringify({ email }) }),
+};
+
+// ─── Wishlist ────────────────────────────────────────────────────────────────
+
+export const wishlistApi = {
+  list: (token: string): Promise<any[]> =>
+    apiFetch("wishlist", { token }),
+  add: (productId: string, token: string): Promise<any> =>
+    apiFetch(`wishlist/${productId}`, { method: "POST", token }),
+  remove: (productId: string, token: string): Promise<void> =>
+    apiFetch(`wishlist/${productId}`, { method: "DELETE", token }),
+};
+
+// ─── Addresses ────────────────────────────────────────────────────────────────
+
+export const addressesApi = {
+  list: (token: string): Promise<any[]> =>
+    apiFetch("addresses", { token }),
+  create: (body: any, token: string): Promise<any> =>
+    apiFetch("addresses", { method: "POST", body: JSON.stringify(body), token }),
+  update: (id: string, body: any, token: string): Promise<any> =>
+    apiFetch(`addresses/${id}`, { method: "PUT", body: JSON.stringify(body), token }),
+  delete: (id: string, token: string): Promise<void> =>
+    apiFetch(`addresses/${id}`, { method: "DELETE", token }),
+};
+
+// ─── Rewards ──────────────────────────────────────────────────────────────────
+
+export const rewardsApi = {
+  get: (token: string): Promise<any> =>
+    apiFetch("rewards", { token }),
+};
+
+// ─── Analytics ────────────────────────────────────────────────────────────────
+
+export const analyticsApi = {
+  summary: (token: string): Promise<any> =>
+    apiFetch('analytics/summary', { token }),
+
+  dashboard: (token: string): Promise<any> =>
+    apiFetch('analytics/dashboard', { token }),
+
+  topPages: (token: string, limit = 10): Promise<any[]> =>
+    apiFetch(`analytics/top-pages?limit=${limit}`, { token }),
+
+  devices: (token: string): Promise<any[]> =>
+    apiFetch('analytics/devices', { token }),
+
+  browsers: (token: string): Promise<any[]> =>
+    apiFetch('analytics/browsers', { token }),
+
+  countries: (token: string): Promise<any[]> =>
+    apiFetch('analytics/countries', { token }),
+
+  trend: (token: string, days = 30): Promise<any[]> =>
+    apiFetch(`analytics/trend?days=${days}`, { token }),
 };

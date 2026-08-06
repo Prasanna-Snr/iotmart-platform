@@ -1,11 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Star, CheckCircle, AlertCircle, LogIn } from "lucide-react";
 import { productsApi } from "@/lib/api";
-import { getCustomerToken } from "@/lib/customerAuth";
+import { getCustomerSession } from "@/lib/customerAuth";
 
 interface Props {
   productId: string;
@@ -22,8 +22,14 @@ export default function WriteReviewForm({ productId, onSubmitted }: Props) {
   const [success, setSuccess] = useState(false);
   const [error, setError]     = useState("");
   const [errors, setErrors]   = useState<{ rating?: string; title?: string }>({});
+  const [signedIn, setSignedIn] = useState(false);
+  const [mounted, setMounted] = useState(false);
 
-  const token = getCustomerToken();
+  // Defer session read to client-side to avoid SSR/client hydration mismatch
+  useEffect(() => {
+    setSignedIn(!!getCustomerSession());
+    setMounted(true);
+  }, []);
 
   const validate = () => {
     const e: typeof errors = {};
@@ -42,7 +48,7 @@ export default function WriteReviewForm({ productId, onSubmitted }: Props) {
       await productsApi.addReview(
         productId,
         { rating, title: title.trim(), body: body.trim() },
-        token!
+        ""
       );
       setSuccess(true);
       setRating(0);
@@ -58,7 +64,12 @@ export default function WriteReviewForm({ productId, onSubmitted }: Props) {
   };
 
   // Not logged in
-  if (!token) {
+  if (!mounted) {
+    // Render a neutral placeholder on both server and client until mounted
+    return <div className="bg-white rounded-xl border border-[#CDBBAD]/50 p-5 h-20 animate-pulse" />;
+  }
+
+  if (!signedIn) {
     return (
       <div className="bg-[#F0E9E3]/60 border border-[#CDBBAD]/50 rounded-xl p-5 flex items-center gap-4">
         <LogIn size={20} className="text-[#5D1C34] flex-shrink-0" />

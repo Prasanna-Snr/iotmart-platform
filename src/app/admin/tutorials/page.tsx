@@ -5,7 +5,6 @@ import Link from "next/link";
 import Image from "next/image";
 import { Plus, Pencil } from "lucide-react";
 import { tutorialsApi } from "@/lib/api";
-import { getAdminToken } from "@/lib/adminAuth";
 import { DIFFICULTY_COLORS } from "@/lib/constants";
 
 const DIFFICULTIES = ["Beginner", "Intermediate", "Advanced"];

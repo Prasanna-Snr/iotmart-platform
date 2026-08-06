@@ -15,6 +15,7 @@ interface BreadcrumbProps {
 export default function Breadcrumb({ items, className }: BreadcrumbProps) {
   return (
     <nav
+      role="navigation"
       aria-label="Breadcrumb"
       className={cn("flex items-center text-sm", className)}
     >

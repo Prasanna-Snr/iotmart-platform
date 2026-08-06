@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Trash2 } from "lucide-react";
 import { productsApi } from "@/lib/api";
-import { getAdminToken } from "@/lib/adminAuth";
+import { getAdminSession } from "@/lib/adminAuth";
 
 interface Props {
   id: string;
@@ -17,11 +17,10 @@ export default function DeleteProductButton({ id, name }: Props) {
 
   const handleDelete = async () => {
     if (!confirm(`Delete "${name}"? This cannot be undone.`)) return;
-    const token = getAdminToken();
-    if (!token) { alert("Not authenticated."); return; }
+    if (!getAdminSession()) { alert("Not authenticated."); return; }
     setDeleting(true);
     try {
-      await productsApi.delete(id, token);
+      await productsApi.delete(id, "");
       router.refresh();
     } catch (err: any) {
       alert(err.message ?? "Failed to delete product.");

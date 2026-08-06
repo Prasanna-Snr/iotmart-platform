@@ -4,32 +4,33 @@ from datetime import datetime
 
 
 class OrderItemIn(BaseModel):
+    """Only product identity + quantity are accepted. Prices are always
+    read from the database server-side, never trusted from the client."""
+
     product_id: str
-    product_name: str
+    product_name: str = ""
     product_image: str = ""
-    price: float
     quantity: int
-    subtotal: float
 
 
 class ShippingAddressIn(BaseModel):
     first_name: str
     last_name: str
-    email: str
     phone: str
     address_line1: str
     address_line2: str = ""
     city: str
     state: str
-    zip_code: str
-    country: str
+    zip_code: str = ""
+    country: str = ""
 
 
 class OrderCreate(BaseModel):
     items: list[OrderItemIn]
     shipping_address: ShippingAddressIn
-    payment_method: str = "card"
+    payment_method: str = "cod"
     notes: str | None = None
+    coupon_code: str | None = None
 
 
 class OrderStatusUpdate(BaseModel):
@@ -40,12 +41,14 @@ class OrderOut(BaseModel):
     id: UUID
     order_number: str
     user_id: UUID | None = None
+    customer_email: str | None = None
     items: list
     shipping_address: dict
     status: str
     subtotal: float
     shipping_cost: float
-    tax: float
+    discount_amount: float = 0.0
+    coupon_code: str | None = None
     total: float
     payment_method: str
     payment_status: str

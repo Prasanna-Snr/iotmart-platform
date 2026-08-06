@@ -2,32 +2,97 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import Image from "next/image";
 import { Cpu, BookOpen, Package, Users, Truck, ArrowRight, Star, Zap, Shield } from "lucide-react";
-import { featuredProducts } from "@/data/products";
-import { featuredTutorials } from "@/data/tutorials";
-import { categories } from "@/data/categories";
 import ProductCard from "@/components/product/ProductCard";
 import TutorialCard from "@/components/tutorial/TutorialCard";
 import HomeNewsletterForm from "@/components/ui/HomeNewsletterForm";
-import { SITE_NAME, SITE_DESCRIPTION } from "@/lib/constants";
+import BannerCarousel from "@/components/ui/BannerCarousel";
+import { SITE_NAME, SITE_URL } from "@/lib/constants";
+import { jsonLdString, productListJsonLd } from "@/lib/seo";
 
 export const metadata: Metadata = {
-  title: `${SITE_NAME} — IoT Gadgets, Sensors & Development Boards`,
-  description: SITE_DESCRIPTION,
+  title: `${SITE_NAME} — Buy IoT Hardware, Sensors & Dev Boards Nepal`,
+  description: 'IoTMart Nepal: Buy Arduino, ESP32, Raspberry Pi, sensors, robotics parts and IoT development boards online. 200+ products, free tutorials, fast shipping.',
+  alternates: { canonical: SITE_URL },
+  openGraph: {
+    title: `${SITE_NAME} — Buy IoT Hardware, Sensors & Dev Boards Nepal`,
+    description: 'IoTMart Nepal: Buy Arduino, ESP32, Raspberry Pi, sensors, robotics parts and IoT development boards online. 200+ products, free tutorials, fast shipping.',
+    url: SITE_URL,
+    type: 'website',
+    images: [{ url: `${SITE_URL}/og-default.png`, width: 1200, height: 630, alt: 'IoTMart — IoT Hardware Store Nepal' }],
+  },
 };
 
-export default function HomePage() {
+export default async function HomePage() {
+  const apiBase = process.env.API_INTERNAL_URL ?? "http://localhost:8000";
+
+  // Fetch real categories, featured products, and featured tutorials in parallel
+  const [categories, featuredProducts, featuredTutorials, banners] = await Promise.all([
+    fetch(`${apiBase}/api/categories`, { next: { revalidate: 60 } })
+      .then((r) => r.ok ? r.json() : [])
+      .catch(() => []),
+    fetch(`${apiBase}/api/products?featured=true&page_size=8`, { next: { revalidate: 60 } })
+      .then((r) => r.ok ? r.json().then((d: any) => d.items ?? []) : [])
+      .catch(() => []),
+    fetch(`${apiBase}/api/tutorials?featured=true&published=true&page_size=3`, { next: { revalidate: 60 } })
+      .then((r) => r.ok ? r.json().then((d: any) => d.items ?? []) : [])
+      .catch(() => []),
+    fetch(`${apiBase}/api/banners?active=true`, { next: { revalidate: 60 } })
+      .then((r) => r.ok ? r.json() : [])
+      .catch(() => []),
+  ]);
   return (
     <>
+      {/* ── Homepage structured data ────────────────────────────────────
+          WebPage schema ties into the root Organization/WebSite graph;
+          the ItemList mirrors the featured products rendered below.
+      ─────────────────────────────────────────────────────────────── */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: jsonLdString({
+            "@context": "https://schema.org",
+            "@type": "WebPage",
+            "@id": `${SITE_URL}/#webpage`,
+            url: SITE_URL,
+            name: `${SITE_NAME} — Buy IoT Hardware, Sensors & Dev Boards Nepal`,
+            description: 'IoTMart Nepal: Buy Arduino, ESP32, Raspberry Pi, sensors, robotics parts and IoT development boards online. 200+ products, free tutorials, fast shipping.',
+            isPartOf: { "@id": `${SITE_URL}/#website` },
+            about: { "@id": `${SITE_URL}/#organization` },
+            primaryImageOfPage: {
+              "@type": "ImageObject",
+              url: `${SITE_URL}/og-default.png`,
+            },
+          }),
+        }}
+      />
+      {featuredProducts.length > 0 && (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: jsonLdString(productListJsonLd(featuredProducts)),
+          }}
+        />
+      )}
+
       {/* Hero */}
-      <section className="relative overflow-hidden bg-[#11100E] text-white">
-        <div className="absolute inset-0 bg-gradient-to-br from-[#5D1C34]/40 via-transparent to-[#A67D45]/20" />
+      <section id="main-content" className="relative overflow-hidden bg-[#11100E] text-white">
+        {/* Background video */}
+        <video
+          autoPlay
+          loop
+          muted
+          playsInline
+          aria-hidden
+          className="absolute inset-0 w-full h-full object-cover opacity-30"
+        >
+          <source src="/bg-video.mp4" type="video/mp4" />
+        </video>
+        {/* Overlay gradient so text stays readable */}
+        <div className="absolute inset-0 bg-gradient-to-br from-[#11100E]/80 via-[#5D1C34]/30 to-[#11100E]/60" />
         <div className="container-custom relative py-20 md:py-28">
           <div className="max-w-2xl">
-            <span className="inline-flex items-center gap-1.5 bg-[#5D1C34]/30 border border-[#5D1C34]/50 text-[#CDBBAD] text-xs font-medium px-3 py-1 rounded-full mb-6">
-              <Zap size={11} /> 200+ IoT Components In Stock
-            </span>
-            <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold leading-tight mb-6">
-              Build the <span className="text-[#A67D45]">Future</span><br />with IoT
+            <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold leading-tight mb-6 text-white drop-shadow-sm">
+              Build IoT Projects with<br /><span className="text-[#F0C060]">Nepal's Best Hardware</span>
             </h1>
             <p className="text-lg text-[#899581] leading-relaxed mb-8 max-w-xl">
               Your one-stop shop for sensors, microcontrollers, development boards, and free step-by-step project tutorials.
@@ -42,10 +107,10 @@ export default function HomePage() {
             </div>
           </div>
         </div>
-        <div className="absolute right-0 top-0 w-1/2 h-full opacity-10 hidden lg:block">
-          <Image src="https://images.unsplash.com/photo-1518770660439-4636190af475?w=800&q=60" alt="" fill className="object-cover" aria-hidden />
-        </div>
       </section>
+
+      {/* Promotional banners (from CMS) */}
+      {banners.length > 0 && <BannerCarousel banners={banners} />}
 
       {/* Stats */}
       <section className="bg-[#5D1C34]">
@@ -55,7 +120,7 @@ export default function HomePage() {
               { icon: Package,  label: "Products",      value: "200+" },
               { icon: BookOpen, label: "Tutorials",     value: "50+"  },
               { icon: Users,    label: "Makers",        value: "10K+" },
-              { icon: Truck,    label: "Free Shipping", value: "Over $50" },
+              { icon: Truck,    label: "Free Shipping", value: "Over Rs. 50" },
             ].map(({ icon: Icon, label, value }) => (
               <div key={label} className="flex items-center justify-center gap-2 py-3 text-white">
                 <Icon size={16} className="text-[#A67D45] flex-shrink-0" />
@@ -70,49 +135,65 @@ export default function HomePage() {
       </section>
 
       {/* Categories */}
+      {categories.length > 0 && (
       <section className="container-custom py-14">
         <div className="flex items-end justify-between mb-8">
           <div>
             <h2 className="text-2xl md:text-3xl font-bold text-[#11100E]">Shop by Category</h2>
-            <p className="text-[#899581] mt-1">Everything you need for your IoT projects</p>
+            <p className="text-[#899581] mt-1">Everything you need for your IoT & Robotics projects</p>
           </div>
           <Link href="/products" className="hidden sm:flex items-center gap-1 text-sm font-medium text-[#5D1C34] hover:underline">
             All Products <ArrowRight size={14} />
           </Link>
         </div>
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-          {categories.map((cat) => (
+          {categories.slice(0, 8).map((cat: any) => (
             <Link key={cat.id} href={`/products?category=${cat.slug}`}
               className="group relative overflow-hidden rounded-xl bg-[#11100E] aspect-square">
-              <Image src={cat.image} alt={cat.name} fill className="object-cover opacity-60 group-hover:opacity-80 transition-opacity group-hover:scale-105 transition-transform duration-300" />
+              {cat.image ? (
+                <Image
+                  src={cat.image}
+                  alt={cat.name}
+                  fill
+                  className="object-cover opacity-60 group-hover:opacity-80 transition-opacity group-hover:scale-105 transition-transform duration-300"
+                />
+              ) : (
+                <div className="absolute inset-0 bg-gradient-to-br from-[#5D1C34]/60 to-[#11100E]" />
+              )}
               <div className="absolute inset-0 flex flex-col justify-end p-4">
                 <h3 className="text-white font-semibold text-sm">{cat.name}</h3>
-                <p className="text-[#CDBBAD]/70 text-xs">{cat.productCount} items</p>
+                {cat.description && (
+                  <p className="text-[#CDBBAD]/70 text-xs line-clamp-1 mt-0.5">{cat.description}</p>
+                )}
               </div>
             </Link>
           ))}
         </div>
       </section>
+      )}
 
       {/* Featured Products */}
+      {featuredProducts.length > 0 && (
       <section className="bg-white py-14">
         <div className="container-custom">
           <div className="flex items-end justify-between mb-8">
             <div>
               <h2 className="text-2xl md:text-3xl font-bold text-[#11100E]">Featured Products</h2>
-              <p className="text-[#899581] mt-1">Hand-picked components for your projects</p>
+              <p className="text-[#899581] mt-1">Arduino, ESP32, Raspberry Pi &amp; more — hand-picked for makers</p>
             </div>
             <Link href="/products" className="hidden sm:flex items-center gap-1 text-sm font-medium text-[#5D1C34] hover:underline">
               View All <ArrowRight size={14} />
             </Link>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5">
-            {featuredProducts.map((product) => <ProductCard key={product.id} product={product} />)}
+            {featuredProducts.map((product: any) => <ProductCard key={product.id} product={product} />)}
           </div>
         </div>
       </section>
+      )}
 
       {/* Tutorials */}
+      {featuredTutorials.length > 0 && (
       <section className="container-custom py-14">
         <div className="flex items-end justify-between mb-8">
           <div>
@@ -124,9 +205,10 @@ export default function HomePage() {
           </Link>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-          {featuredTutorials.map((tut) => <TutorialCard key={tut.id} tutorial={tut} />)}
+          {featuredTutorials.map((tut: any) => <TutorialCard key={tut.id} tutorial={tut} />)}
         </div>
       </section>
+      )}
 
       {/* Why Choose Us */}
       <section className="bg-[#5D1C34]/5 border-y border-[#CDBBAD]/30 py-14">
@@ -136,7 +218,7 @@ export default function HomePage() {
             {[
               { icon: Shield,   title: "Quality Guaranteed", body: "Every component is tested and sourced from trusted manufacturers." },
               { icon: BookOpen, title: "Free Tutorials",     body: "Detailed project guides for every skill level — beginner to advanced." },
-              { icon: Truck,    title: "Fast Shipping",      body: "Free shipping on orders over $50. Most orders ship within 24 hours." },
+              { icon: Truck,    title: "Fast Shipping",      body: "Free shipping on orders over Rs. 50. Most orders ship within 24 hours." },
             ].map(({ icon: Icon, title, body }) => (
               <div key={title} className="flex gap-4 bg-white rounded-xl p-6 border border-[#CDBBAD]/40">
                 <div className="bg-[#5D1C34]/10 p-3 rounded-lg h-fit"><Icon size={20} className="text-[#5D1C34]" /></div>

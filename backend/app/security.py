@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta, timezone
 from jose import JWTError, jwt
 from passlib.context import CryptContext
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
@@ -11,6 +11,9 @@ from app.models.models import User
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 bearer_scheme = HTTPBearer(auto_error=False)
+
+# httpOnly cookie name carrying the access token (set on login/register/refresh).
+ACCESS_COOKIE = "access_token"
 
 
 def hash_password(password: str) -> str:
@@ -39,12 +42,19 @@ def decode_token(token: str) -> dict:
 
 
 async def get_current_user(
+    request: Request,
     credentials: HTTPAuthorizationCredentials | None = Depends(bearer_scheme),
     db: AsyncSession = Depends(get_db),
 ) -> User:
-    if not credentials:
+    # Accept the token from either the Authorization header or the httpOnly
+    # access_token cookie. The cookie path keeps the credential out of
+    # JavaScript (XSS-safe); the header path supports non-browser clients.
+    token = credentials.credentials if credentials else None
+    if not token:
+        token = request.cookies.get(ACCESS_COOKIE)
+    if not token:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated")
-    payload = decode_token(credentials.credentials)
+    payload = decode_token(token)
     if payload.get("type") != "access":
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token type")
     result = await db.execute(select(User).where(User.id == payload["sub"]))

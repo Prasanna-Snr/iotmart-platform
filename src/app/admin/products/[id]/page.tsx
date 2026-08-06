@@ -5,7 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, Pencil, Trash2, AlertCircle, Star, Package, Tag, Box } from "lucide-react";
 import { productsApi } from "@/lib/api";
-import { getAdminToken } from "@/lib/adminAuth";
+import { getAdminSession } from "@/lib/adminAuth";
 import { formatPrice } from "@/lib/utils";
 
 export default function AdminProductDetailPage() {
@@ -29,7 +29,7 @@ export default function AdminProductDetailPage() {
 
   const handleDelete = async () => {
     if (!confirm(`Delete "${product?.name}"? This cannot be undone.`)) return;
-    const token = getAdminToken();
+    const token = getAdminSession()?.id ?? null;
     if (!token) { setError("Not authenticated."); return; }
     setDeleting(true);
     try {

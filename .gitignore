@@ -86,6 +86,12 @@ Desktop.ini
 # ─── Vercel / Deployment ──────────────────────────────────────────────────────
 .vercel
 
+# ─── Large media files (serve locally or via CDN) ────────────────────────────
+public/*.mp4
+public/*.webm
+public/*.mov
+public/*.avi
+
 # ─── Misc ─────────────────────────────────────────────────────────────────────
 *.pem
 *.key
