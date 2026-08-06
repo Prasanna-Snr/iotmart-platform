@@ -9,7 +9,7 @@ import ProductCard from "@/components/product/ProductCard";
 import StarRating from "@/components/ui/StarRating";
 import Badge from "@/components/ui/Badge";
 import Breadcrumb from "@/components/ui/Breadcrumb";
-import { formatPrice, calculateDiscount, formatDateShort } from "@/lib/utils";
+import { formatPrice, calculateDiscount } from "@/lib/utils";
 import {
   generateProductMetadata,
   productJsonLd,
@@ -17,6 +17,7 @@ import {
   jsonLdString,
 } from "@/lib/seo";
 import WriteReviewForm from "@/components/product/WriteReviewForm";
+import ProductReviews from "@/components/product/ProductReviews";
 
 interface PageProps {
   params: Promise<{ slug: string }>;
@@ -229,26 +230,7 @@ export default async function ProductDetailPage({ params }: PageProps) {
               {product.reviews.length === 0 ? (
                 <p className="text-sm text-[#899581]">No reviews yet. Be the first to review this product!</p>
               ) : (
-                <div className="space-y-4">
-                  {product.reviews.map((review: any) => (
-                    <div key={review.id} className="bg-white rounded-xl border border-[#CDBBAD]/50 p-4">
-                      <div className="flex items-start justify-between mb-2">
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <span className="font-medium text-sm text-[#11100E]">{review.userName}</span>
-                            {review.verified && (
-                              <span className="text-xs bg-green-100 text-green-700 px-1.5 py-0.5 rounded">Verified</span>
-                            )}
-                          </div>
-                          <StarRating rating={review.rating} size={13} className="mt-1" />
-                        </div>
-                        <time className="text-xs text-[#899581]">{formatDateShort(review.date)}</time>
-                      </div>
-                      <h4 className="font-medium text-sm text-[#11100E] mb-1">{review.title}</h4>
-                      <p className="text-sm text-[#899581]">{review.body}</p>
-                    </div>
-                  ))}
-                </div>
+                <ProductReviews productId={product.id} reviews={product.reviews} />
               )}
               <div className="mt-6">
                 <WriteReviewForm productId={product.id} />

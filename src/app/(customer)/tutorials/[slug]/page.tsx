@@ -4,6 +4,9 @@ import Image from "next/image";
 import Link from "next/link";
 import { Clock, Eye, User, CheckCircle } from "lucide-react";
 import { tutorialsApi, productsApi } from "@/lib/api";
+
+// ISR via per-fetch `next.revalidate` in api.ts (route-segment `revalidate`
+// was removed in Next.js v16).
 import TutorialCard from "@/components/tutorial/TutorialCard";
 import CodeBlock from "@/components/tutorial/CodeBlock";
 import Breadcrumb from "@/components/ui/Breadcrumb";

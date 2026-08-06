@@ -30,6 +30,7 @@ class OrderCreate(BaseModel):
     shipping_address: ShippingAddressIn
     payment_method: str = "cod"
     notes: str | None = None
+    coupon_code: str | None = None
 
 
 class OrderStatusUpdate(BaseModel):
@@ -46,6 +47,8 @@ class OrderOut(BaseModel):
     status: str
     subtotal: float
     shipping_cost: float
+    discount_amount: float = 0.0
+    coupon_code: str | None = None
     total: float
     payment_method: str
     payment_status: str

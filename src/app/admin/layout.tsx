@@ -10,7 +10,7 @@ import { useAdminAuth } from "@/lib/adminAuth";
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router   = useRouter();
-  const { token, user, setAuth, clearAuth, ready } = useAdminAuth();
+  const { user, setAuth, clearAuth, ready } = useAdminAuth();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [collapsed, setCollapsed]     = useState(false);
 
@@ -20,15 +20,15 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     setCollapsed(isPageEditor);
   }, [pathname]);
 
-  // When session expires (token becomes null after being set), stay on /admin
-  // The login modal will automatically show because token is null.
+  // When session expires (user becomes null after being set), stay on /admin
+  // The login modal will automatically show because user is null.
   // If you want to show an "expired" message you could set state here.
   useEffect(() => {
-    if (ready && !token) {
+    if (ready && !user) {
       // Already on /admin — login modal will show automatically.
       // Nothing else needed; the modal is rendered below.
     }
-  }, [ready, token]);
+  }, [ready, user]);
 
   // Called by AdminLoginModal on successful login
   const handleLogin = useCallback((accessToken: string, adminUser: any) => {
@@ -40,7 +40,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   const handleLogout = useCallback(() => {
     clearAuth();
-    // token becomes null → re-render → login modal shows automatically
+    // user becomes null → re-render → login modal shows automatically
   }, [clearAuth]);
 
   // Wait until localStorage is read
@@ -53,7 +53,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   }
 
   // Not logged in or session expired — show login modal
-  if (!token) {
+  if (!user) {
     return <AdminLoginModal onLogin={handleLogin} />;
   }
 

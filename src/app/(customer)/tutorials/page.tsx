@@ -1,6 +1,9 @@
 import Link from "next/link";
 import { BookOpen } from "lucide-react";
 import { tutorialsApi } from "@/lib/api";
+
+// ISR via per-fetch `next.revalidate` in api.ts (route-segment `revalidate`
+// was removed in Next.js v16).
 import TutorialCard from "@/components/tutorial/TutorialCard";
 import PaginationLinks from "@/components/ui/PaginationLinks";
 import { DIFFICULTY_COLORS } from "@/lib/constants";

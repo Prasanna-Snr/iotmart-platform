@@ -1,9 +1,9 @@
 from datetime import datetime, timezone
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 from app.database import get_db
-from app.models.models import Order, Product, User
+from app.models.models import Order, Product, User, AdminAuditLog
 from app.schemas.admin import AdminDashboard, DashboardStats, DashboardMonthly, DashboardTopProduct
 from app.schemas.orders import OrderOut
 from app.security import get_current_admin
@@ -116,3 +116,25 @@ async def admin_dashboard(db: AsyncSession = Depends(get_db), _=Depends(get_curr
         top_products=top_products,
         recent_orders=recent_orders,
     )
+
+
+@router.get("/audit", response_model=list[dict])
+async def audit_log(
+    db: AsyncSession = Depends(get_db),
+    limit: int = Query(100, ge=1, le=500),
+    _=Depends(get_current_admin),
+):
+    """Latest admin/security audit trail entries (newest first)."""
+    rows = (await db.execute(
+        select(AdminAuditLog).order_by(AdminAuditLog.created_at.desc()).limit(limit)
+    )).scalars().all()
+    return [{
+        "id": str(r.id),
+        "actor_id": str(r.actor_id) if r.actor_id else None,
+        "actor_email": r.actor_email,
+        "action": r.action,
+        "target_type": r.target_type,
+        "target_id": r.target_id,
+        "detail": r.detail,
+        "created_at": r.created_at,
+    } for r in rows]

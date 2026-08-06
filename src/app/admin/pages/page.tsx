@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Plus, Pencil, Trash2, Eye, Globe, FileText } from "lucide-react";
 import { cmsApi } from "@/lib/api";
-import { getAdminToken } from "@/lib/adminAuth";
+import { getAdminSession } from "@/lib/adminAuth";
 import type { CMSPage } from "@/lib/cms-store";
 
 function slugToPath(slug: string): string {
@@ -31,7 +31,7 @@ export default function AdminPagesPage() {
   useEffect(() => { load(); }, []);
 
   const handleCreate = async () => {
-    const token = getAdminToken();
+    const token = getAdminSession()?.id ?? null;
     if (!token) return;
     setCreating(true);
     setError("");
@@ -48,7 +48,7 @@ export default function AdminPagesPage() {
   };
 
   const handleDelete = async (id: string, title: string) => {
-    const token = getAdminToken();
+    const token = getAdminSession()?.id ?? null;
     if (!token) return;
     if (!confirm(`Delete "${title}"? This cannot be undone.`)) return;
     setError("");

@@ -30,6 +30,8 @@ _SEND_PATCH.start()
 
 from main import app  # noqa: E402  (must import after patch)
 from app.config import settings
+from app.database import get_db
+from app.models.models import User
 
 client = TestClient(app, raise_server_exceptions=False)
 
@@ -107,11 +109,13 @@ class TestRequestOtp:
         return db
 
     def test_valid_email_returns_200(self):
-        with patch("app.routers.auth.get_db") as mock_get_db, \
-             patch("app.email_service._send_sync"):
+        with patch("app.email_service._send_sync"):
             db = self._db_no_user_no_pending()
-            mock_get_db.return_value = _async_ctx(db)
-            resp = client.post("/api/auth/request-otp", json={"email": "new@example.com"})
+            app.dependency_overrides[get_db] = _db_override(db)
+            try:
+                resp = client.post("/api/auth/request-otp", json={"email": "new@example.com"})
+            finally:
+                app.dependency_overrides.clear()
         assert resp.status_code == 200
         body = resp.json()
         assert "message" in body
@@ -121,16 +125,17 @@ class TestRequestOtp:
         assert resp.status_code == 422
 
     def test_already_registered_email_returns_400(self):
-        with patch("app.routers.auth.get_db") as mock_get_db:
-            db = AsyncMock()
-            result = MagicMock()
-            result.scalar_one_or_none.return_value = _FakeUser("existing@example.com")
-            db.execute = AsyncMock(return_value=result)
-            db.close = AsyncMock()
-            db.rollback = AsyncMock()
-            mock_get_db.return_value = _async_ctx(db)
-
+        db = AsyncMock()
+        result = MagicMock()
+        result.scalar_one_or_none.return_value = _FakeUser("existing@example.com")
+        db.execute = AsyncMock(return_value=result)
+        db.close = AsyncMock()
+        db.rollback = AsyncMock()
+        app.dependency_overrides[get_db] = _db_override(db)
+        try:
             resp = client.post("/api/auth/request-otp", json={"email": "existing@example.com"})
+        finally:
+            app.dependency_overrides.clear()
 
         assert resp.status_code == 400
         assert "already registered" in resp.json()["detail"].lower()
@@ -140,11 +145,13 @@ class TestRequestOtp:
         original = settings.smtp_host
         settings.smtp_host = ""
         try:
-            with patch("app.routers.auth.get_db") as mock_get_db, \
-                 patch("app.email_service._send_sync"):
+            with patch("app.email_service._send_sync"):
                 db = self._db_no_user_no_pending()
-                mock_get_db.return_value = _async_ctx(db)
-                resp = client.post("/api/auth/request-otp", json={"email": "dev@example.com"})
+                app.dependency_overrides[get_db] = _db_override(db)
+                try:
+                    resp = client.post("/api/auth/request-otp", json={"email": "dev@example.com"})
+                finally:
+                    app.dependency_overrides.clear()
             assert resp.status_code == 200
             assert "dev_otp" in resp.json()
             assert len(resp.json()["dev_otp"]) == 6
@@ -186,12 +193,14 @@ class TestVerifyOtp:
             expires_at=datetime.now(timezone.utc) + timedelta(minutes=5),
         )
 
-        with patch("app.routers.auth.get_db") as mock_get_db:
-            mock_get_db.return_value = _async_ctx(self._make_db_with_pending(pending))
+        app.dependency_overrides[get_db] = _db_override(self._make_db_with_pending(pending))
+        try:
             resp = client.post(
                 "/api/auth/verify-otp",
                 json={"email": "user@example.com", "otp": otp},
             )
+        finally:
+            app.dependency_overrides.clear()
 
         assert resp.status_code == 200
         body = resp.json()
@@ -207,12 +216,14 @@ class TestVerifyOtp:
             expires_at=datetime.now(timezone.utc) + timedelta(minutes=5),
         )
 
-        with patch("app.routers.auth.get_db") as mock_get_db:
-            mock_get_db.return_value = _async_ctx(self._make_db_with_pending(pending))
+        app.dependency_overrides[get_db] = _db_override(self._make_db_with_pending(pending))
+        try:
             resp = client.post(
                 "/api/auth/verify-otp",
                 json={"email": "user@example.com", "otp": "000000"},
             )
+        finally:
+            app.dependency_overrides.clear()
 
         assert resp.status_code == 400
         assert "invalid" in resp.json()["detail"].lower() or "expired" in resp.json()["detail"].lower()
@@ -226,12 +237,14 @@ class TestVerifyOtp:
             expires_at=datetime.now(timezone.utc) - timedelta(minutes=1),  # already expired
         )
 
-        with patch("app.routers.auth.get_db") as mock_get_db:
-            mock_get_db.return_value = _async_ctx(self._make_db_with_pending(pending))
+        app.dependency_overrides[get_db] = _db_override(self._make_db_with_pending(pending))
+        try:
             resp = client.post(
                 "/api/auth/verify-otp",
                 json={"email": "user@example.com", "otp": otp},
             )
+        finally:
+            app.dependency_overrides.clear()
 
         assert resp.status_code == 400
         assert "expired" in resp.json()["detail"].lower()
@@ -246,12 +259,14 @@ class TestVerifyOtp:
         )
         pending.used = True
 
-        with patch("app.routers.auth.get_db") as mock_get_db:
-            mock_get_db.return_value = _async_ctx(self._make_db_with_pending(pending))
+        app.dependency_overrides[get_db] = _db_override(self._make_db_with_pending(pending))
+        try:
             resp = client.post(
                 "/api/auth/verify-otp",
                 json={"email": "user@example.com", "otp": otp},
             )
+        finally:
+            app.dependency_overrides.clear()
 
         assert resp.status_code == 400
         assert "already used" in resp.json()["detail"].lower()
@@ -265,12 +280,14 @@ class TestVerifyOtp:
         db.close = AsyncMock()
         db.rollback = AsyncMock()
 
-        with patch("app.routers.auth.get_db") as mock_get_db:
-            mock_get_db.return_value = _async_ctx(db)
+        app.dependency_overrides[get_db] = _db_override(db)
+        try:
             resp = client.post(
                 "/api/auth/verify-otp",
                 json={"email": "ghost@example.com", "otp": "123456"},
             )
+        finally:
+            app.dependency_overrides.clear()
 
         assert resp.status_code == 400
 
@@ -284,12 +301,14 @@ class TestVerifyOtp:
         )
         pending.attempts = settings.otp_max_attempts  # already at limit
 
-        with patch("app.routers.auth.get_db") as mock_get_db:
-            mock_get_db.return_value = _async_ctx(self._make_db_with_pending(pending))
+        app.dependency_overrides[get_db] = _db_override(self._make_db_with_pending(pending))
+        try:
             resp = client.post(
                 "/api/auth/verify-otp",
                 json={"email": "user@example.com", "otp": "000000"},
             )
+        finally:
+            app.dependency_overrides.clear()
 
         assert resp.status_code == 429
 
@@ -333,10 +352,12 @@ class TestResendOtp:
         db.rollback = AsyncMock()
         db.commit = AsyncMock()
 
-        with patch("app.routers.auth.get_db") as mock_get_db, \
-             patch("app.email_service._send_sync"):
-            mock_get_db.return_value = _async_ctx(db)
-            resp = client.post("/api/auth/request-otp", json={"email": "resend@example.com"})
+        with patch("app.email_service._send_sync"):
+            app.dependency_overrides[get_db] = _db_override(db)
+            try:
+                resp = client.post("/api/auth/request-otp", json={"email": "resend@example.com"})
+            finally:
+                app.dependency_overrides.clear()
 
         assert resp.status_code == 200
         # The existing pending row should have had its OTP replaced
@@ -356,6 +377,7 @@ class TestRegisterWithOtp:
         """DB where no user exists yet; optional pending row."""
         db = AsyncMock()
         call_index = 0
+        added_users: list = []
 
         async def execute(stmt):
             nonlocal call_index
@@ -369,9 +391,26 @@ class TestRegisterWithOtp:
             call_index += 1
             return result
 
+        def add(obj):
+            # Track newly-added users so flush() can populate server defaults.
+            if isinstance(obj, User):
+                added_users.append(obj)
+            return None
+
+        async def flush():
+            # Mirror PostgreSQL: server defaults + RETURNING populate the
+            # just-inserted User row after the flush.
+            for u in added_users:
+                if u.id is None:
+                    u.id = uuid.uuid4()
+                if u.role is None:
+                    u.role = "customer"
+                if u.created_at is None:
+                    u.created_at = datetime.now(timezone.utc)
+
         db.execute = execute
-        db.add = MagicMock()
-        db.flush = AsyncMock()
+        db.add = add
+        db.flush = flush
         db.delete = AsyncMock()
         db.close = AsyncMock()
         db.rollback = AsyncMock()
@@ -381,8 +420,8 @@ class TestRegisterWithOtp:
     def test_valid_token_creates_user_and_returns_access_token(self):
         token = _make_verification_token("newuser@example.com")
 
-        with patch("app.routers.auth.get_db") as mock_get_db:
-            mock_get_db.return_value = _async_ctx(self._db_fresh())
+        app.dependency_overrides[get_db] = _db_override(self._db_fresh())
+        try:
             resp = client.post(
                 "/api/auth/register",
                 json={
@@ -392,6 +431,8 @@ class TestRegisterWithOtp:
                     "verification_token": token,
                 },
             )
+        finally:
+            app.dependency_overrides.clear()
 
         assert resp.status_code == 201
         body = resp.json()
@@ -441,8 +482,8 @@ class TestRegisterWithOtp:
         db.close = AsyncMock()
         db.rollback = AsyncMock()
 
-        with patch("app.routers.auth.get_db") as mock_get_db:
-            mock_get_db.return_value = _async_ctx(db)
+        app.dependency_overrides[get_db] = _db_override(db)
+        try:
             resp = client.post(
                 "/api/auth/register",
                 json={
@@ -452,6 +493,8 @@ class TestRegisterWithOtp:
                     "verification_token": token,
                 },
             )
+        finally:
+            app.dependency_overrides.clear()
 
         assert resp.status_code == 400
         assert "already registered" in resp.json()["detail"].lower()
@@ -521,12 +564,17 @@ class TestEmailServiceHelpers:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Async context-manager helper for mocking get_db
+# DB override helper for get_db
 # ─────────────────────────────────────────────────────────────────────────────
+#
+# FastAPI resolves Depends(get_db) using the function object captured at import
+# time, so patching the module attribute never intercepts it.  Instead we set
+# app.dependency_overrides[get_db] with an async-generator factory matching the
+# original get_db signature.
 
-def _async_ctx(db):
-    """Return an async generator that yields the mock db, matching get_db()."""
-    async def _gen():
+def _db_override(db):
+    """Return an async-generator factory suitable for app.dependency_overrides[get_db]."""
+    async def _override():
         try:
             yield db
             await db.commit()
@@ -535,4 +583,4 @@ def _async_ctx(db):
             raise
         finally:
             await db.close()
-    return _gen()
+    return _override

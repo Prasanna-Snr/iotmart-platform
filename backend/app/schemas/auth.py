@@ -76,3 +76,10 @@ class RegisterWithOTP(BaseModel):
     email: EmailStr
     password: str
     verification_token: str
+
+
+class PasswordResetConfirm(BaseModel):
+    """Set a new password for an existing account using the emailed OTP."""
+    email: EmailStr
+    otp: str
+    new_password: str

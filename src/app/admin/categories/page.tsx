@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { Plus, Trash2, AlertCircle, CheckCircle, Tag, Edit2, X } from "lucide-react";
 import Input from "@/components/ui/Input";
 import { categoriesApi } from "@/lib/api";
-import { getAdminToken } from "@/lib/adminAuth";
+import { getAdminSession } from "@/lib/adminAuth";
 import { slugify } from "@/lib/utils";
 
 interface CategoryItem {
@@ -91,7 +91,7 @@ export default function AdminCategoriesPage() {
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!validateCreate()) return;
-    const token = getAdminToken();
+    const token = getAdminSession()?.id ?? null;
     if (!token) { setCreateError("Not authenticated."); return; }
     setCreateLoading(true);
     setCreateError("");
@@ -148,7 +148,7 @@ export default function AdminCategoriesPage() {
   const handleEdit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!validateEdit() || !editId) return;
-    const token = getAdminToken();
+    const token = getAdminSession()?.id ?? null;
     if (!token) { setEditError("Not authenticated."); return; }
     setEditLoading(true);
     setEditError("");
@@ -176,7 +176,7 @@ export default function AdminCategoriesPage() {
 
   const handleDelete = async (cat: CategoryItem) => {
     if (!confirm(`Delete category "${cat.name}"? This cannot be undone.`)) return;
-    const token = getAdminToken();
+    const token = getAdminSession()?.id ?? null;
     if (!token) { setDeleteError("Not authenticated."); return; }
     setDeletingId(cat.id);
     setDeleteError("");

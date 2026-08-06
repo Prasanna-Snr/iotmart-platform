@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, or_, func
 from sqlalchemy.orm import selectinload
@@ -45,7 +46,14 @@ async def delete_tutorial_category(id: str, db: AsyncSession = Depends(get_db), 
     cat = (await db.execute(select(TutorialCategory).where(TutorialCategory.id == id))).scalar_one_or_none()
     if not cat:
         raise HTTPException(status_code=404, detail="Category not found")
-    await db.delete(cat)
+    try:
+        await db.delete(cat)
+        await db.flush()
+    except IntegrityError:
+        raise HTTPException(
+            status_code=400,
+            detail="Category still contains tutorials and cannot be deleted.",
+        )
 
 
 @router.get("", response_model=TutorialListOut)

@@ -127,6 +127,14 @@ export default function RootLayout({
             __html: jsonLdString(webSiteJsonLd()),
           }}
         />
+
+        {/* PWA: register service worker (secure origin or localhost) */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html:
+              'if ((location.protocol === "https:" || location.hostname === "localhost") && "serviceWorker" in navigator) { window.addEventListener("load", function () { navigator.serviceWorker.register("/sw.js").catch(function () {}); }); }',
+          }}
+        />
       </body>
     </html>
   );

@@ -9,7 +9,7 @@ import { useRouter } from "next/navigation";
 import { Check, ChevronRight } from "lucide-react";
 import { useCart } from "@/context/CartContext";
 import { useCustomerAuth } from "@/lib/customerAuth";
-import { ordersApi, authApi, addressesApi } from "@/lib/api";
+import { ordersApi, authApi, addressesApi, couponsApi } from "@/lib/api";
 import Input from "@/components/ui/Input";
 import {
   formatPrice,
@@ -42,7 +42,7 @@ const initialShipping: ShippingForm = {
 
 export default function CheckoutPage() {
   const router = useRouter();
-  const { token, ready } = useCustomerAuth();
+  const { user, ready } = useCustomerAuth();
   const { items, subtotal, clearCart } = useCart();
   const { settings } = useStoreSettings();
   const { freeShippingThreshold, shippingCost: defaultShippingCost } = settings;
@@ -55,20 +55,24 @@ export default function CheckoutPage() {
   const [placingOrder, setPlacingOrder] = useState(false);
   const [userEmail, setUserEmail] = useState("");
   const [savedAddresses, setSavedAddresses] = useState<any[]>([]);
+  const [couponCode, setCouponCode] = useState("");
+  const [couponState, setCouponState] = useState<"idle" | "loading" | "valid" | "error">("idle");
+  const [couponMessage, setCouponMessage] = useState("");
+  const [couponDiscount, setCouponDiscount] = useState(0);
 
   // Redirect to login if not authenticated
   useEffect(() => {
-    if (ready && !token) {
+    if (ready && !user) {
       router.replace("/login?redirect=/checkout");
     }
-  }, [ready, token, router]);
+  }, [ready, user, router]);
 
   // Fetch logged-in user's email
   useEffect(() => {
-    if (token) {
-      authApi.me(token).then((u: any) => setUserEmail(u.email ?? "")).catch(() => {});
+    if (user) {
+      authApi.me().then((u: any) => setUserEmail(u.email ?? "")).catch(() => {});
     }
-  }, [token]);
+  }, [user]);
 
   const applyAddress = (a: any) => {
     const name = (a.full_name ?? "").split(" ");
@@ -85,9 +89,9 @@ export default function CheckoutPage() {
 
   // Fetch saved addresses
   useEffect(() => {
-    if (!token) return;
+    if (!user) return;
     addressesApi
-      .list(token)
+      .list("")
       .then((data) => {
         setSavedAddresses(data);
         const def = data.find((a) => a.is_default);
@@ -95,10 +99,43 @@ export default function CheckoutPage() {
       })
       .catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [token]);
+  }, [user]);
 
   const shippingCost = calculateShipping(subtotal, freeShippingThreshold, defaultShippingCost);
   const total = calculateTotal(subtotal, freeShippingThreshold, defaultShippingCost);
+
+  const applyCoupon = async () => {
+    const code = couponCode.trim();
+    if (!code) return;
+    setCouponState("loading");
+    setCouponMessage("");
+    try {
+      const res = await couponsApi.validate({ code, subtotal });
+      if (res.valid) {
+        setCouponState("valid");
+        setCouponDiscount(res.discount ?? 0);
+        setCouponCode(res.code ?? code);
+        setCouponMessage(res.discount ? `You save ${formatPrice(res.discount ?? 0)}!` : "Coupon applied.");
+      } else {
+        setCouponState("error");
+        setCouponDiscount(0);
+        setCouponMessage(res.message ?? "Invalid or expired coupon code.");
+      }
+    } catch (e: any) {
+      setCouponState("error");
+      setCouponDiscount(0);
+      setCouponMessage(e.message ?? "Could not validate coupon.");
+    }
+  };
+
+  const removeCoupon = () => {
+    setCouponCode("");
+    setCouponState("idle");
+    setCouponDiscount(0);
+    setCouponMessage("");
+  };
+
+  const displayTotal = Math.max(0, total - couponDiscount);
 
   const validateStep1 = () => {
     const e: Partial<ShippingForm> = {};
@@ -139,8 +176,9 @@ export default function CheckoutPage() {
           state:         shipping.state,
         },
         payment_method: paymentMethod,
+        ...(couponState === "valid" && couponCode ? { coupon_code: couponCode } : {}),
       };
-      const order: any = await ordersApi.create(payload, token!);
+      const order: any = await ordersApi.create(payload, "");
       setOrderNumber(order.order_number);
       clearCart();
       setStep(3);
@@ -161,7 +199,7 @@ export default function CheckoutPage() {
   const steps = ["Shipping", "Review", "Confirmation"];
 
   // Still reading localStorage — don't render yet
-  if (!ready || !token) {
+  if (!ready || !user) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
         <p className="text-[#899581] text-sm">Checking authentication…</p>
@@ -318,7 +356,7 @@ export default function CheckoutPage() {
                     disabled={placingOrder}
                     className="flex-1 bg-[#5D1C34] text-white py-3 rounded-xl font-medium hover:bg-[#4a1628] disabled:opacity-60 transition-colors text-sm"
                   >
-                    {placingOrder ? "Placing Order…" : `Place Order • ${formatPrice(total)}`}
+                    {placingOrder ? "Placing Order…" : `Place Order • ${formatPrice(displayTotal)}`}
                   </button>
                 </div>
                 {orderError && (
@@ -366,6 +404,42 @@ export default function CheckoutPage() {
               <h2 className="font-semibold text-[#11100E] mb-4">
                 Order Summary
               </h2>
+
+              {/* Coupon */}
+              <div className="mb-4">
+                {couponState === "valid" ? (
+                  <div className="flex items-center justify-between rounded-lg border border-green-200 bg-green-50 px-3 py-2.5 text-sm">
+                    <div>
+                      <p className="font-mono font-semibold text-green-700">{couponCode}</p>
+                      <p className="text-xs text-green-600">{couponMessage}</p>
+                    </div>
+                    <button onClick={removeCoupon} className="text-xs text-green-700 underline">Remove</button>
+                  </div>
+                ) : (
+                  <>
+                    <div className="flex gap-2">
+                      <input
+                        value={couponCode}
+                        onChange={(e) => { setCouponCode(e.target.value); if (couponState === "error") setCouponState("idle"); }}
+                        onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); applyCoupon(); } }}
+                        placeholder="Coupon code"
+                        className="flex-1 rounded-lg border border-[#CDBBAD]/60 px-3 py-2 text-sm text-[#11100E] placeholder-[#CDBBAD] focus:outline-none focus:ring-2 focus:ring-[#5D1C34]/30"
+                      />
+                      <button
+                        onClick={applyCoupon}
+                        disabled={couponState === "loading" || !couponCode.trim()}
+                        className="bg-[#11100E] text-white px-3 py-2 rounded-lg text-sm font-medium hover:bg-black disabled:opacity-50 transition-colors"
+                      >
+                        {couponState === "loading" ? "…" : "Apply"}
+                      </button>
+                    </div>
+                    {couponState === "error" && (
+                      <p className="text-xs text-red-500 mt-1.5">{couponMessage}</p>
+                    )}
+                  </>
+                )}
+              </div>
+
               <div className="space-y-3 mb-4">
                 {items.map(({ product, quantity }) => (
                   <div key={product.id} className="flex gap-3">
@@ -406,6 +480,12 @@ export default function CheckoutPage() {
                   <span>Subtotal</span>
                   <span>{formatPrice(subtotal)}</span>
                 </div>
+                {couponState === "valid" && couponDiscount > 0 && (
+                  <div className="flex justify-between text-green-600 font-medium">
+                    <span>Coupon discount ({couponCode})</span>
+                    <span>−{formatPrice(couponDiscount)}</span>
+                  </div>
+                )}
                 <div className="flex justify-between text-[#899581]">
                   <span>Shipping</span>
                   <span className={shippingCost === 0 ? "text-green-600" : ""}>
@@ -414,7 +494,7 @@ export default function CheckoutPage() {
                 </div>
                 <div className="flex justify-between font-bold text-[#11100E] text-base pt-1">
                   <span>Total</span>
-                  <span>{formatPrice(total)}</span>
+                  <span>{formatPrice(displayTotal)}</span>
                 </div>
               </div>
             </div>

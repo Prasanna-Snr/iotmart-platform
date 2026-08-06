@@ -8,7 +8,7 @@ import Input from "@/components/ui/Input";
 import Textarea from "@/components/ui/Textarea";
 import Select from "@/components/ui/Select";
 import { tutorialsApi } from "@/lib/api";
-import { getAdminToken } from "@/lib/adminAuth";
+import { getAdminSession } from "@/lib/adminAuth";
 import { slugify } from "@/lib/utils";
 
 const difficultyOptions = [
@@ -63,7 +63,7 @@ export default function AdminAddTutorialPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!validate()) return;
-    const token = getAdminToken();
+    const token = getAdminSession()?.id ?? null;
     if (!token) { setSaveError("Not authenticated."); return; }
     setSaving(true);
     setSaveError("");

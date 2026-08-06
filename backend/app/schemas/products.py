@@ -97,8 +97,43 @@ class ProductOut(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class ProductListItem(BaseModel):
+    """Lightweight product representation used in listing endpoints.
+
+    Reviews are deliberately excluded — fetching all review bodies for every
+    product on a page is expensive and unused by list UIs.  The full
+    ``ProductOut`` (with reviews) is only returned by the single-item
+    ``GET /products/{slug}`` and ``GET /products/id/{id}`` endpoints.
+    """
+    id: UUID
+    name: str
+    slug: str
+    sku: str
+    short_description: str
+    price: float
+    original_price: float | None = None
+    currency: str
+    images: list
+    tags: list
+    stock: int
+    rating: float
+    review_count: int
+    featured: bool
+    new_arrival: bool
+    best_seller: bool
+    in_stock: bool
+    weight: str | None = None
+    dimensions: str | None = None
+    related_product_ids: list
+    category: CategoryOut | None = None
+    brand: BrandOut | None = None
+    created_at: datetime
+    updated_at: datetime
+    model_config = {"from_attributes": True}
+
+
 class ProductListOut(BaseModel):
-    items: list[ProductOut]
+    items: list[ProductListItem]
     total: int
     page: int
     page_size: int

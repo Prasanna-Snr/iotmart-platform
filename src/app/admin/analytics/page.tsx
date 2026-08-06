@@ -14,7 +14,7 @@ import {
   Wifi,
 } from "lucide-react";
 import { analyticsApi } from "@/lib/api";
-import { getAdminToken } from "@/lib/adminAuth";
+import { getAdminSession } from "@/lib/adminAuth";
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
@@ -87,6 +87,18 @@ const DEFAULT_SUMMARY = {
   online_now: 0,
 };
 
+// Admin cookie auth is automatic via the httpOnly access_token cookie — no
+// token header is needed for the rollup endpoints.
+async function fetchRollupRows(): Promise<any[]> {
+  try {
+    const res = await fetch("/api/analytics/admin/rollup", { headers: {} });
+    if (!res.ok) return [];
+    return await res.json();
+  } catch {
+    return [];
+  }
+}
+
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function AdminAnalyticsPage() {
@@ -99,9 +111,12 @@ export default function AdminAnalyticsPage() {
   const [browsers, setBrowsers]   = useState<any[]>([]);
   const [countries, setCountries] = useState<any[]>([]);
   const [trend, setTrend]         = useState<any[]>([]);
+  const [rollup, setRollup]       = useState<any[]>([]);
+  const [runningRollup, setRunningRollup] = useState(false);
+  const [rollupStatus, setRollupStatus]   = useState("");
 
   useEffect(() => {
-    const token = getAdminToken();
+    const token = getAdminSession()?.id ?? null;
     if (!token) {
       setError("Not authenticated.");
       setLoading(false);
@@ -115,19 +130,40 @@ export default function AdminAnalyticsPage() {
       analyticsApi.browsers(token).catch(() => []),
       analyticsApi.countries(token).catch(() => []),
       analyticsApi.trend(token, 14).catch(() => []),
-    ]).then(([sum, pages, devs, brows, cntrs, trnd]) => {
+      fetchRollupRows(),
+    ]).then(([sum, pages, devs, brows, cntrs, trnd, roll]) => {
       setSummary(sum);
       setTopPages(pages);
       setDevices(devs);
       setBrowsers(brows);
       setCountries(cntrs);
       setTrend(trnd);
+      setRollup(roll);
       setLoading(false);
     }).catch(() => {
       setError("Failed to load analytics data.");
       setLoading(false);
     });
   }, []);
+
+  const runRollup = async () => {
+    setRunningRollup(true);
+    setRollupStatus("");
+    try {
+      const res = await fetch("/api/analytics/admin/rollup", {
+        method: "POST",
+        headers: {},
+      });
+      if (!res.ok) throw new Error("rollup failed");
+      const data = await res.json();
+      setRollupStatus(`Rolled up ${data.days} day(s); pruned ${data.pruned} old view(s).`);
+      setRollup(await fetchRollupRows());
+    } catch {
+      setRollupStatus("Rollup failed — check that you are logged in as admin.");
+    } finally {
+      setRunningRollup(false);
+    }
+  };
 
   const deviceIcon = (type: string) => {
     if (type === "mobile") return Smartphone;
@@ -348,6 +384,55 @@ export default function AdminAnalyticsPage() {
             </div>
           )}
         </div>
+      </div>
+
+      {/* Daily rollup */}
+      <div className="bg-white rounded-xl border border-[#CDBBAD]/50 p-5 mt-6">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="font-semibold text-[#11100E] flex items-center gap-2">
+            <BarChart2 size={16} className="text-[#5D1C34]" /> Daily Rollup
+          </h2>
+          <div className="flex items-center gap-3">
+            {rollupStatus && <span className="text-xs text-[#899581]">{rollupStatus}</span>}
+            <button
+              onClick={runRollup}
+              disabled={runningRollup}
+              className="bg-[#5D1C34] hover:bg-[#A67D45] disabled:opacity-50 text-white text-sm px-4 py-2 rounded-lg transition-colors"
+            >
+              {runningRollup ? "Running..." : "Run rollup now"}
+            </button>
+          </div>
+        </div>
+        {rollup.length === 0 ? (
+          <p className="text-sm text-[#899581] text-center py-8">No daily rollups yet</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-left text-xs text-[#899581] border-b border-[#F0E9E3]">
+                  <th className="py-2 pr-4 font-medium">Day</th>
+                  <th className="py-2 pr-4 font-medium">Views</th>
+                  <th className="py-2 pr-4 font-medium">Visitors</th>
+                  <th className="py-2 pr-4 font-medium">Sessions</th>
+                  <th className="py-2 font-medium">Avg Duration</th>
+                </tr>
+              </thead>
+              <tbody>
+                {rollup.map((r: any) => (
+                  <tr key={r.day} className="border-b border-[#F0E9E3]/60 last:border-0">
+                    <td className="py-2 pr-4 text-[#11100E] font-medium">{r.day}</td>
+                    <td className="py-2 pr-4 text-[#11100E]">{r.views.toLocaleString()}</td>
+                    <td className="py-2 pr-4 text-[#11100E]">{r.visitors.toLocaleString()}</td>
+                    <td className="py-2 pr-4 text-[#11100E]">{r.sessions.toLocaleString()}</td>
+                    <td className="py-2 text-[#11100E]">
+                      {r.avg_duration_ms != null ? `${(r.avg_duration_ms / 1000).toFixed(1)}s` : "—"}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
     </div>
   );

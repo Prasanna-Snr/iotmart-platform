@@ -7,7 +7,7 @@ import {
 import Input from "@/components/ui/Input";
 import Textarea from "@/components/ui/Textarea";
 import { settingsApi, authApi } from "@/lib/api";
-import { getAdminToken } from "@/lib/adminAuth";
+import { getAdminSession } from "@/lib/adminAuth";
 import { useAdminAuth } from "@/lib/adminAuth";
 
 type Tab = "store" | "shipping" | "notifications" | "security";
@@ -39,7 +39,7 @@ export default function AdminSettingsPage() {
 
   // Load settings on mount
   useEffect(() => {
-    const token = getAdminToken();
+    const token = getAdminSession()?.id ?? null;
     if (!token) { setLoadError("Not authenticated."); setLoading(false); return; }
     settingsApi
       .get(token)
@@ -58,7 +58,7 @@ export default function AdminSettingsPage() {
   const val  = (key: string, fallback = "") => settings[key] ?? fallback;
 
   const handleSave = async () => {
-    const token = getAdminToken();
+    const token = getAdminSession()?.id ?? null;
     if (!token) return;
     setSaving(true);
     setSaveError("");
@@ -79,7 +79,7 @@ export default function AdminSettingsPage() {
     setPwdError("");
     if (newPwd !== confirmPwd) { setPwdError("Passwords do not match."); return; }
     if (newPwd.length < 6)     { setPwdError("Password must be at least 6 characters."); return; }
-    const token = getAdminToken();
+    const token = getAdminSession()?.id ?? null;
     if (!token) return;
     setPwdSaving(true);
     try {

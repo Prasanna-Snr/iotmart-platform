@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import Image from "next/image";
 import { Plus, Pencil, Trash2, ToggleLeft, ToggleRight, GripVertical } from "lucide-react";
 import { bannersApi } from "@/lib/api";
-import { getAdminToken } from "@/lib/adminAuth";
+import { getAdminSession } from "@/lib/adminAuth";
 import Modal from "@/components/ui/Modal";
 import Input from "@/components/ui/Input";
 
@@ -28,7 +28,7 @@ export default function AdminBannersPage() {
   const [editTarget, setEditTarget] = useState<BannerItem | null>(null);
   const [form, setForm] = useState({ title: "", subtitle: "", cta_text: "", cta_link: "", image: "", active: true, order: 1 });
 
-  const token = () => getAdminToken();
+  const token = () => getAdminSession()?.id ?? null;
 
   const load = () => {
     const t = token();

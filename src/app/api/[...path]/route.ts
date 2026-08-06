@@ -5,10 +5,48 @@ const API_URL =
   process.env.NEXT_PUBLIC_API_URL ??
   "http://localhost:8000";
 
+const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
+
+function checkCsrf(req: NextRequest): NextResponse | null {
+  if (SAFE_METHODS.has(req.method)) return null;
+
+  const host = req.headers.get("host") ?? req.nextUrl.host;
+  const origin = req.headers.get("origin");
+  if (origin) {
+    let originHost: string;
+    try {
+      originHost = new URL(origin).host;
+    } catch {
+      return NextResponse.json(
+        { detail: "Cross-origin request rejected" },
+        { status: 403 }
+      );
+    }
+    if (originHost !== host) {
+      return NextResponse.json(
+        { detail: "Cross-origin request rejected" },
+        { status: 403 }
+      );
+    }
+  }
+
+  if (req.headers.get("sec-fetch-site") === "cross-site") {
+    return NextResponse.json(
+      { detail: "Cross-origin request rejected" },
+      { status: 403 }
+    );
+  }
+
+  return null;
+}
+
 async function proxy(
   req: NextRequest,
   params: { path: string[] }
 ): Promise<NextResponse> {
+  const csrf = checkCsrf(req);
+  if (csrf) return csrf;
+
   const path = params.path.join("/");
   const search = req.nextUrl.search ?? "";
   const url = `${API_URL}/api/${path}${search}`;
@@ -37,10 +75,16 @@ async function proxy(
     const resBody = await res.arrayBuffer();
     const resHeaders = new Headers();
     res.headers.forEach((value, key) => {
-      if (!["transfer-encoding", "connection"].includes(key.toLowerCase())) {
-        resHeaders.set(key, value);
-      }
+      const k = key.toLowerCase();
+      if (["transfer-encoding", "connection", "set-cookie"].includes(k)) return;
+      resHeaders.set(key, value);
     });
+    // undici's Headers.forEach only surfaces the LAST set-cookie header, so
+    // forward the rest via getSetCookie() to preserve ALL cookies (e.g. the
+    // backend sets both access_token and refresh_token on login).
+    if (typeof res.headers.getSetCookie === "function") {
+      res.headers.getSetCookie().forEach((c) => resHeaders.append("set-cookie", c));
+    }
 
     const response = new NextResponse(resBody.byteLength ? resBody : null, {
       status: res.status,

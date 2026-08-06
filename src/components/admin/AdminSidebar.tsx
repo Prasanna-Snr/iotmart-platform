@@ -21,6 +21,7 @@ import {
   List,
   Layout,
   Box,
+  Ticket,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAdminAuth } from "@/lib/adminAuth";
@@ -51,6 +52,7 @@ const navItems = [
   },
   { label: "Reviews", href: "/admin/reviews", icon: Star },
   { label: "Banners", href: "/admin/banners", icon: Image },
+  { label: "Coupons", href: "/admin/coupons", icon: Ticket },
   { label: "Analytics", href: "/admin/analytics", icon: BarChart2 },
   { label: "Settings", href: "/admin/settings", icon: Settings },
 ];

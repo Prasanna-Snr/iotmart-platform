@@ -13,7 +13,7 @@ import {
   BookOpen,
 } from "lucide-react";
 import { adminApi } from "@/lib/api";
-import { getAdminToken } from "@/lib/adminAuth";
+import { getAdminSession } from "@/lib/adminAuth";
 import { formatPrice, formatDateShort } from "@/lib/utils";
 import { ORDER_STATUS_COLORS } from "@/lib/constants";
 
@@ -21,9 +21,10 @@ export default function AdminDashboardPage() {
   const [data, setData]     = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError]   = useState("");
+  const [activity, setActivity] = useState<any[] | null>(null);
 
   useEffect(() => {
-    const token = getAdminToken();
+    const token = getAdminSession()?.id ?? null;
     if (!token) {
       setError("Not authenticated.");
       setLoading(false);
@@ -34,6 +35,24 @@ export default function AdminDashboardPage() {
       .then(setData)
       .catch((e) => setError(e.message ?? "Failed to load dashboard."))
       .finally(() => setLoading(false));
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/admin/audit?limit=10", { cache: "no-store" })
+      .then((res) => {
+        if (!res.ok) throw new Error("audit unavailable");
+        return res.json();
+      })
+      .then((rows: any) => {
+        if (!cancelled) setActivity(Array.isArray(rows) ? rows : []);
+      })
+      .catch(() => {
+        if (!cancelled) setActivity(null);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   if (loading) {
@@ -254,6 +273,39 @@ export default function AdminDashboardPage() {
           <p className="text-sm text-[#899581] py-10 text-center">No orders yet.</p>
         )}
       </div>
+
+      {/* Recent activity */}
+      {activity !== null && (
+        <div className="bg-white rounded-xl border border-[#CDBBAD]/50 overflow-hidden">
+          <div className="flex items-center justify-between px-5 py-4 border-b border-[#F0E9E3]">
+            <h2 className="font-semibold text-[#11100E]">Recent Activity</h2>
+          </div>
+          {activity.length > 0 ? (
+            <ul className="divide-y divide-[#F0E9E3]">
+              {activity.map((entry: any) => (
+                <li key={entry.id ?? `${entry.created_at}-${entry.action}`} className="flex items-start gap-3 px-5 py-3">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs text-[#11100E]">
+                      <span className="font-medium">{entry.actor_email}</span>
+                      <span className="text-[#899581]"> · {entry.action}</span>
+                    </p>
+                    <p className="text-xs text-[#899581] mt-0.5 truncate">
+                      {entry.target_type}
+                      {entry.target_id ? ` #${entry.target_id}` : ""}
+                      {entry.detail ? ` — ${entry.detail}` : ""}
+                    </p>
+                  </div>
+                  <span className="text-xs text-[#899581] whitespace-nowrap">
+                    {formatDateShort(entry.created_at)}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-sm text-[#899581] py-10 text-center">No activity yet.</p>
+          )}
+        </div>
+      )}
     </div>
   );
 }

@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { Plus, Pencil, Trash2 } from "lucide-react";
 import { tutorialsApi } from "@/lib/api";
-import { getAdminToken } from "@/lib/adminAuth";
+import { getAdminSession } from "@/lib/adminAuth";
 import { slugify } from "@/lib/utils";
 import Input from "@/components/ui/Input";
 import Modal from "@/components/ui/Modal";
@@ -60,7 +60,7 @@ export default function AdminTutorialCategoriesPage() {
   const handleSave = async () => {
     if (!form.name.trim()) { setSaveError("Name is required."); return; }
     if (!form.slug.trim()) { setSaveError("Slug is required."); return; }
-    const token = getAdminToken();
+    const token = getAdminSession()?.id ?? null;
     if (!token) { setSaveError("Not authenticated."); return; }
     setSaving(true);
     setSaveError("");
@@ -87,7 +87,7 @@ export default function AdminTutorialCategoriesPage() {
 
   const handleDelete = async (id: string, name: string) => {
     if (!confirm(`Delete "${name}"? Tutorials in this category may be affected.`)) return;
-    const token = getAdminToken();
+    const token = getAdminSession()?.id ?? null;
     if (!token) return;
     try {
       await tutorialsApi.deleteCategory(id, token);

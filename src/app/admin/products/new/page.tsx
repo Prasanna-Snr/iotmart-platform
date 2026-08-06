@@ -9,7 +9,7 @@ import Textarea from "@/components/ui/Textarea";
 import Select from "@/components/ui/Select";
 import ImagePicker from "@/components/admin/ImagePicker";
 import { productsApi, categoriesApi, brandsApi } from "@/lib/api";
-import { getAdminToken } from "@/lib/adminAuth";
+import { getAdminSession } from "@/lib/adminAuth";
 import { slugify } from "@/lib/utils";
 
 interface Spec { label: string; value: string }
@@ -92,7 +92,7 @@ export default function AdminAddProductPage() {
     e.preventDefault();
     if (!validate()) return;
 
-    const token = getAdminToken();
+    const token = getAdminSession()?.id ?? null;
     if (!token) {
       setApiError("Not authenticated. Please log in as admin.");
       return;

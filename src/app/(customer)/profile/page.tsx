@@ -20,7 +20,7 @@ import type { Section } from "@/components/profile/ProfileSidebar";
 
 export default function ProfilePage() {
   const router = useRouter();
-  const { token, user, ready, clearAuth, setAuth } = useCustomerAuth();
+  const { user, ready, clearAuth, setAuth } = useCustomerAuth();
 
   const [section, setSection] = useState<Section>("dashboard");
 
@@ -34,8 +34,8 @@ export default function ProfilePage() {
 
   // Redirect if not authenticated
   useEffect(() => {
-    if (ready && !token) router.replace("/login?redirect=/profile");
-  }, [ready, token, router]);
+    if (ready && !user) router.replace("/login?redirect=/profile");
+  }, [ready, user, router]);
 
   // Hydrate local name
   useEffect(() => {
@@ -44,23 +44,23 @@ export default function ProfilePage() {
 
   // Fetch orders once
   useEffect(() => {
-    if (!token) return;
+    if (!user) return;
     setOrdersLoading(true);
     ordersApi
-      .list(token)
+      .list("")
       .then(setOrders)
       .catch((e: any) => setOrdersError(e.message ?? "Failed to load orders."))
       .finally(() => setOrdersLoading(false));
-  }, [token]);
+  }, [user]);
 
   // Fetch reward balance for the dashboard stat
   useEffect(() => {
-    if (!token) return;
+    if (!user) return;
     rewardsApi
-      .get(token)
+      .get("")
       .then((data) => setRewardPoints(data.balance ?? 0))
       .catch(() => {});
-  }, [token]);
+  }, [user]);
 
   const handleLogout = () => {
     clearAuth();
@@ -69,10 +69,10 @@ export default function ProfilePage() {
 
   const handleNameSaved = (name: string) => {
     setLocalName(name);
-    if (user && token) setAuth(token, { ...(user as any), name });
+    if (user) setAuth("", { ...(user as any), name });
   };
 
-  if (!ready || !token || !user) {
+  if (!ready || !user) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
         <div className="w-6 h-6 border-2 border-[#5D1C34] border-t-transparent rounded-full animate-spin" />
@@ -140,7 +140,7 @@ export default function ProfilePage() {
                 orders={orders}
                 loading={ordersLoading}
                 error={ordersError}
-                token={token}
+                token=""
                 onOrderCancelled={(updated) =>
                   setOrders((prev) => prev.map((o) => (o.id === updated.id ? updated : o)))
                 }
@@ -149,23 +149,23 @@ export default function ProfilePage() {
           )}
 
           {/* Addresses */}
-          {section === "addresses" && <AddressesPanel token={token} />}
+          {section === "addresses" && <AddressesPanel token="" />}
 
           {/* Payment Methods */}
           {section === "payment" && <PaymentPanel />}
 
           {/* Wishlist */}
-          {section === "wishlist" && <WishlistPanel token={token} />}
+          {section === "wishlist" && <WishlistPanel token="" />}
 
           {/* Rewards */}
-          {section === "rewards" && <RewardsPanel token={token} />}
+          {section === "rewards" && <RewardsPanel token="" />}
 
           {/* Account Settings */}
           {section === "settings" && (
             <div>
               <h2 className="text-base font-semibold text-[#11100E] mb-3">Account Settings</h2>
               <AccountSettingsPanel
-                token={token}
+                token=""
                 initialName={displayName}
                 initialEmail={email}
                 initialPhone={phone}

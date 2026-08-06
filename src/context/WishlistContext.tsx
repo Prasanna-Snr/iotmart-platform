@@ -23,27 +23,26 @@ const WishlistContext = createContext<WishlistContextValue | null>(null);
 
 export function WishlistProvider({ children }: { children: ReactNode }) {
   const router = useRouter();
-  const { token, ready } = useCustomerAuth();
+  const { user, ready } = useCustomerAuth();
   const [ids, setIds] = useState<Set<string>>(new Set());
 
-  // Load the wishlist whenever the auth token changes. When logged out the
+  // Load the wishlist whenever the auth state changes. When logged out the
   // returned values below report an empty wishlist regardless of stale state.
   useEffect(() => {
-    if (!token) return;
+    if (!user) return;
     let cancelled = false;
     wishlistApi
-      .list(token)
+      .list("")
       .then((items) => {
         if (!cancelled) setIds(new Set(items.map((i) => i.product_id)));
       })
       .catch(() => {});
     return () => { cancelled = true; };
-  }, [token, ready]);
+  }, [user, ready]);
 
   const toggleWishlist = useCallback(
     async (productId: string) => {
-      const current = token;
-      if (!current) {
+      if (!user) {
         router.push("/login?redirect=" + encodeURIComponent(window.location.pathname + window.location.search));
         return;
       }
@@ -56,8 +55,8 @@ export function WishlistProvider({ children }: { children: ReactNode }) {
         return next;
       });
       try {
-        if (exists) await wishlistApi.remove(productId, current);
-        else await wishlistApi.add(productId, current);
+        if (exists) await wishlistApi.remove(productId, "");
+        else await wishlistApi.add(productId, "");
       } catch {
         // Roll back on failure
         setIds((prev) => {
@@ -68,16 +67,16 @@ export function WishlistProvider({ children }: { children: ReactNode }) {
         });
       }
     },
-    [ids, token, router]
+    [ids, user, router]
   );
 
   const value = useMemo<WishlistContextValue>(
     () => ({
-      isInWishlist: (productId: string) => !!token && ids.has(productId),
+      isInWishlist: (productId: string) => !!user && ids.has(productId),
       toggleWishlist,
-      count: token ? ids.size : 0,
+      count: user ? ids.size : 0,
     }),
-    [ids, token, toggleWishlist]
+    [ids, user, toggleWishlist]
   );
 
   return (

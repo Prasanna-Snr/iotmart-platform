@@ -6,6 +6,7 @@ from typing import Optional
 from app.database import get_db
 from app.models.models import SiteSettings
 from app.security import get_current_admin
+from app.audit import record as audit
 
 router = APIRouter()
 
@@ -55,7 +56,7 @@ async def get_settings(db: AsyncSession = Depends(get_db)):
 
 
 @router.put("", response_model=SettingsOut)
-async def save_settings(body: SettingsIn, db: AsyncSession = Depends(get_db), _=Depends(get_current_admin)):
+async def save_settings(body: SettingsIn, db: AsyncSession = Depends(get_db), admin=Depends(get_current_admin)):
     for key, value in body.settings.items():
         existing = (await db.execute(
             select(SiteSettings).where(SiteSettings.key == key)
@@ -65,4 +66,5 @@ async def save_settings(body: SettingsIn, db: AsyncSession = Depends(get_db), _=
         else:
             db.add(SiteSettings(key=key, value=value))
     await db.flush()
+    await audit(db, admin, "settings.update", "settings", None, ", ".join(sorted(body.settings.keys())))
     return SettingsOut(settings=await _merged(db))

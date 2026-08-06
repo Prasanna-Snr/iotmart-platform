@@ -15,7 +15,7 @@ const subjects = [
   { value: "other",     label: "Other" },
 ];
 
-const emptyForm = { name: "", email: "", subject: "", message: "" };
+const emptyForm = { name: "", email: "", subject: "", message: "", website: "" };
 
 export default function ContactPage() {
   const [form, setForm]           = useState(emptyForm);
@@ -59,12 +59,14 @@ export default function ContactPage() {
     setLoading(true);
     setSubmitError("");
     try {
-      await contactApi.submit({
+      const payload: { name: string; email: string; subject: string; message: string; website?: string } = {
         name:    form.name.trim(),
         email:   form.email.trim(),
         subject: form.subject,
         message: form.message.trim(),
-      });
+      };
+      if (form.website) payload.website = form.website;
+      await contactApi.submit(payload);
       setSubmitted(true);
     } catch (err: any) {
       setSubmitError(err.message ?? "Failed to send message. Please try again.");
@@ -154,6 +156,16 @@ export default function ContactPage() {
               </div>
             ) : (
               <form onSubmit={handleSubmit} noValidate className="space-y-4">
+                <input
+                  type="text"
+                  name="website"
+                  value={form.website}
+                  onChange={(e) => setForm((s) => ({ ...s, website: e.target.value }))}
+                  tabIndex={-1}
+                  autoComplete="off"
+                  aria-hidden="true"
+                  className="absolute -left-[9999px] top-auto h-px w-px overflow-hidden"
+                />
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <Input
                     label="Full Name"

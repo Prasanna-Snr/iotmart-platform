@@ -4,8 +4,9 @@ from sqlalchemy import select, or_, func
 from sqlalchemy.orm import selectinload
 from app.database import get_db
 from app.models.models import Product, ProductReview, User, Category, Brand
-from app.schemas.products import ProductCreate, ProductUpdate, ProductOut, ProductListOut, ReviewCreate, ReviewOut
+from app.schemas.products import ProductCreate, ProductUpdate, ProductOut, ProductListOut, ProductListItem, ReviewCreate, ReviewOut
 from app.security import get_current_user, get_current_admin
+from app.audit import record as audit
 
 router = APIRouter()
 
@@ -33,7 +34,11 @@ async def list_products(
         if b:
             conditions.append(Product.brand_id == b.id)
     if search:
-        conditions.append(or_(Product.name.ilike(f"%{search}%"), Product.description.ilike(f"%{search}%")))
+        conditions.append(or_(
+            Product.search_vector.op("@@")(func.plainto_tsquery("english", search)),
+            Product.name.ilike(f"%{search}%"),
+            Product.description.ilike(f"%{search}%"),
+        ))
     if min_price is not None:
         conditions.append(Product.price >= min_price)
     if max_price is not None:
@@ -46,10 +51,10 @@ async def list_products(
     base_q = select(Product).where(*conditions)
     total = (await db.execute(select(func.count()).select_from(base_q.subquery()))).scalar_one()
 
-    q = (base_q.options(selectinload(Product.category), selectinload(Product.brand), selectinload(Product.reviews))
+    q = (base_q.options(selectinload(Product.category), selectinload(Product.brand))
          .order_by(Product.created_at.desc()).offset((page - 1) * page_size).limit(page_size))
     products = (await db.execute(q)).scalars().all()
-    return ProductListOut(items=[ProductOut.model_validate(p) for p in products], total=total, page=page, page_size=page_size)
+    return ProductListOut(items=[ProductListItem.model_validate(p) for p in products], total=total, page=page, page_size=page_size)
 
 
 @router.get("/id/{id}", response_model=ProductOut)
@@ -79,12 +84,17 @@ async def get_product(slug: str, db: AsyncSession = Depends(get_db)):
 
 
 @router.post("", response_model=ProductOut, status_code=201)
-async def create_product(body: ProductCreate, db: AsyncSession = Depends(get_db), _=Depends(get_current_admin)):
+async def create_product(body: ProductCreate, db: AsyncSession = Depends(get_db), admin=Depends(get_current_admin)):
     if (await db.execute(select(Product).where(Product.slug == body.slug))).scalar_one_or_none():
         raise HTTPException(status_code=400, detail="Slug already exists")
     product = Product(**body.model_dump())
     db.add(product)
     await db.flush()
+    product.search_vector = func.to_tsvector(
+        "english",
+        product.name + " " + (product.short_description or "") + " " + (product.description or "") + " " + " ".join(product.tags or []),
+    )
+    await audit(db, admin, "product.create", "product", product.id, product.slug)
     # Re-fetch with all relationships eagerly loaded
     result = await db.execute(
         select(Product)
@@ -96,13 +106,18 @@ async def create_product(body: ProductCreate, db: AsyncSession = Depends(get_db)
 
 
 @router.put("/{id}", response_model=ProductOut)
-async def update_product(id: str, body: ProductUpdate, db: AsyncSession = Depends(get_db), _=Depends(get_current_admin)):
+async def update_product(id: str, body: ProductUpdate, db: AsyncSession = Depends(get_db), admin=Depends(get_current_admin)):
     product = (await db.execute(select(Product).where(Product.id == id))).scalar_one_or_none()
     if not product:
         raise HTTPException(status_code=404, detail="Product not found")
     for field, value in body.model_dump(exclude_none=True).items():
         setattr(product, field, value)
     await db.flush()
+    product.search_vector = func.to_tsvector(
+        "english",
+        product.name + " " + (product.short_description or "") + " " + (product.description or "") + " " + " ".join(product.tags or []),
+    )
+    await audit(db, admin, "product.update", "product", product.id, product.slug)
     # Re-fetch with all relationships eagerly loaded
     result = await db.execute(
         select(Product)
@@ -114,10 +129,11 @@ async def update_product(id: str, body: ProductUpdate, db: AsyncSession = Depend
 
 
 @router.delete("/{id}", status_code=204)
-async def delete_product(id: str, db: AsyncSession = Depends(get_db), _=Depends(get_current_admin)):
+async def delete_product(id: str, db: AsyncSession = Depends(get_db), admin=Depends(get_current_admin)):
     product = (await db.execute(select(Product).where(Product.id == id))).scalar_one_or_none()
     if not product:
         raise HTTPException(status_code=404, detail="Product not found")
+    await audit(db, admin, "product.delete", "product", product.id, product.slug)
     await db.delete(product)
 
 

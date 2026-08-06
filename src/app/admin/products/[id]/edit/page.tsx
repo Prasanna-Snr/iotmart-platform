@@ -9,7 +9,7 @@ import Textarea from "@/components/ui/Textarea";
 import Select from "@/components/ui/Select";
 import ImagePicker from "@/components/admin/ImagePicker";
 import { productsApi, categoriesApi, brandsApi } from "@/lib/api";
-import { getAdminToken } from "@/lib/adminAuth";
+import { getAdminSession } from "@/lib/adminAuth";
 import { slugify } from "@/lib/utils";
 
 interface Spec { label: string; value: string }
@@ -53,7 +53,7 @@ export default function AdminEditProductPage() {
 
   // Fetch categories, brands, and product data
   useEffect(() => {
-    const token = getAdminToken();
+    const token = getAdminSession()?.id ?? null;
 
     Promise.all([
       categoriesApi.list(),
@@ -121,7 +121,7 @@ export default function AdminEditProductPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const token = getAdminToken();
+    const token = getAdminSession()?.id ?? null;
     if (!token) {
       setApiError("Not authenticated. Please log in as admin.");
       return;
@@ -172,7 +172,7 @@ export default function AdminEditProductPage() {
   const handleDelete = async () => {
     if (!confirm(`Delete "${productName || "this product"}"? This cannot be undone.`)) return;
 
-    const token = getAdminToken();
+    const token = getAdminSession()?.id ?? null;
     if (!token) {
       setApiError("Not authenticated. Please log in as admin.");
       return;

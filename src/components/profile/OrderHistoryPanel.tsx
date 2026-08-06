@@ -3,10 +3,18 @@
 import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { Package, ChevronDown, ChevronUp, X } from "lucide-react";
+import { Package, ChevronDown, ChevronUp, X, Truck, CheckCircle2, Circle, Ban } from "lucide-react";
 import { formatDateShort, formatPrice } from "@/lib/utils";
 import { ORDER_STATUS_COLORS, PAYMENT_STATUS_COLORS } from "@/lib/constants";
 import { ordersApi } from "@/lib/api";
+
+const TRACK_STEPS = ["pending", "processing", "shipped", "delivered"] as const;
+const TRACK_LABELS: Record<string, string> = {
+  pending: "Order placed",
+  processing: "Processing",
+  shipped: "Shipped",
+  delivered: "Delivered",
+};
 
 interface OrderItem {
   product_name: string;
@@ -140,6 +148,58 @@ export default function OrderHistoryPanel({ orders, loading, error, token, onOrd
           {/* Expanded detail */}
           {expandedId === order.id && (
             <div className="border-t border-[#F0E9E3]">
+              {/* Tracking timeline */}
+              <div className="px-5 pt-5">
+                {order.status === "cancelled" || order.status === "refunded" ? (
+                  <div className="flex items-center gap-3 rounded-lg border border-red-100 bg-red-50/60 px-4 py-3">
+                    <Ban size={18} className={order.status === "cancelled" ? "text-red-500" : "text-gray-500"} />
+                    <div>
+                      <p className="text-sm font-semibold text-[#11100E] capitalize">{order.status}</p>
+                      <p className="text-xs text-[#899581]">
+                        {order.status === "cancelled"
+                          ? "This order was cancelled and will not be shipped."
+                          : "This order was refunded."}
+                      </p>
+                    </div>
+                  </div>
+                ) : (
+                  <ol className="flex items-center gap-0">
+                    {TRACK_STEPS.map((step, idx) => {
+                      const currentIndex = TRACK_STEPS.indexOf(order.status as any);
+                      const reached = idx <= currentIndex;
+                      const isCurrent = idx === currentIndex;
+                      return (
+                        <li key={step} className="flex items-center flex-1 last:flex-none">
+                          <div className="flex flex-col items-center gap-1 w-full">
+                            <span
+                              className={`flex h-7 w-7 rounded-full items-center justify-center ${
+                                reached ? "bg-[#5D1C34] text-white" : "bg-[#F0E9E3] text-[#CDBBAD]"
+                              } ${isCurrent ? "ring-4 ring-[#5D1C34]/15" : ""}`}
+                            >
+                              {reached && idx < currentIndex
+                                ? <CheckCircle2 size={14} />
+                                : isCurrent
+                                  ? <Truck size={13} />
+                                  : <Circle size={12} />}
+                            </span>
+                            <span className={`text-[11px] font-medium ${reached ? "text-[#11100E]" : "text-[#CDBBAD]"}`}>
+                              {TRACK_LABELS[step]}
+                            </span>
+                          </div>
+                          {idx < TRACK_STEPS.length - 1 && (
+                            <div
+                              className={`flex-1 h-0.5 mx-2 mt-[-14px] ${
+                                idx < currentIndex ? "bg-[#5D1C34]" : "bg-[#F0E9E3]"
+                              }`}
+                            />
+                          )}
+                        </li>
+                      );
+                    })}
+                  </ol>
+                )}
+              </div>
+
               <div className="p-5 space-y-3">
                 {(order.items ?? []).map((item, idx) => (
                   <div key={idx} className="flex items-center gap-3">
@@ -177,9 +237,9 @@ export default function OrderHistoryPanel({ orders, loading, error, token, onOrd
                 </div>
                 <div>
                   <p className="text-xs text-[#899581] mb-1">Payment</p>
-                  {order.status === "delivered" ? (
-                    <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium capitalize ${PAYMENT_STATUS_COLORS["paid"]}`}>
-                      paid
+                  {order.payment_status ? (
+                    <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium capitalize ${PAYMENT_STATUS_COLORS[order.payment_status] ?? "bg-gray-100 text-gray-600"}`}>
+                      {order.payment_status}
                     </span>
                   ) : (
                     <span className="text-xs text-[#899581]">—</span>

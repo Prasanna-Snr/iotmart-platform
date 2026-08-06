@@ -7,13 +7,14 @@ from __future__ import annotations
 import hashlib
 import secrets
 import re
-from datetime import datetime, timezone, timedelta
+from datetime import date, datetime, time, timezone, timedelta
 from typing import Any
 
 from sqlalchemy import select, func, distinct, and_, delete
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.models import PageView, OnlineVisitor
+from app.models.models import PageView, OnlineVisitor, DailyAnalytics
 
 
 # ─── Bot detection ─────────────────────────────────────────────────
@@ -291,3 +292,119 @@ async def get_daily_trend(db: AsyncSession, days: int = 30) -> list[dict]:
         {"day": r.day.strftime("%Y-%m-%d"), "unique_visitors": r.unique_visitors, "page_views": r.page_views}
         for r in result.all()
     ]
+
+
+# ─── Daily rollup / retention ─────────────────────────────────────────
+
+async def run_daily_rollup(db: AsyncSession, day: date | None = None) -> int:
+    """Aggregate one day of `page_views` into a `DailyAnalytics` row.
+
+    Defaults to yesterday (the most recent complete day).  Upserts via
+    `INSERT ... ON CONFLICT (day) DO UPDATE` so re-running is safe and
+    idempotent.  Returns the number of page views rolled up for the day.
+    """
+    target = day or (_now_utc() - timedelta(days=1)).date()
+    day_start = datetime.combine(target, time.min, tzinfo=timezone.utc)
+    day_end = day_start + timedelta(days=1)
+
+    window = and_(
+        PageView.created_at >= day_start,
+        PageView.created_at < day_end,
+    )
+
+    views_r = await db.execute(
+        select(func.count()).select_from(PageView).where(window)
+    )
+    views = views_r.scalar_one() or 0
+
+    visitors_r = await db.execute(
+        select(func.count(distinct(PageView.visitor_id)))
+        .select_from(PageView)
+        .where(window)
+    )
+    visitors = visitors_r.scalar_one() or 0
+
+    sessions_r = await db.execute(
+        select(func.count(distinct(PageView.session_id)))
+        .select_from(PageView)
+        .where(window)
+    )
+    sessions = sessions_r.scalar_one() or 0
+
+    duration_r = await db.execute(
+        select(func.avg(PageView.duration_ms))
+        .select_from(PageView)
+        .where(window, PageView.duration_ms.isnot(None))
+    )
+    avg_duration_ms = duration_r.scalar_one_or_none()
+    avg_duration_ms = int(round(avg_duration_ms)) if avg_duration_ms is not None else None
+
+    top_paths_r = await db.execute(
+        select(PageView.path, func.count().label("views"))
+        .select_from(PageView)
+        .where(window)
+        .group_by(PageView.path)
+        .order_by(func.count().desc())
+        .limit(20)
+    )
+    top_paths = [{"path": r.path, "views": r.views} for r in top_paths_r.all()]
+
+    async def _breakdown(col: Any, key: str) -> list[dict]:
+        result = await db.execute(
+            select(col, func.count().label("count"))
+            .select_from(PageView)
+            .where(window, col.isnot(None))
+            .group_by(col)
+            .order_by(func.count().desc())
+        )
+        return [{key: getattr(r, key), "count": r.count} for r in result.all()]
+
+    devices = await _breakdown(PageView.device_type, "device_type")
+    browsers = await _breakdown(PageView.browser, "browser")
+    countries = await _breakdown(PageView.country, "country")
+
+    stmt = pg_insert(DailyAnalytics).values(
+        day=target,
+        views=views,
+        visitors=visitors,
+        sessions=sessions,
+        avg_duration_ms=avg_duration_ms,
+        top_paths=top_paths,
+        devices=devices,
+        browsers=browsers,
+        countries=countries,
+    ).on_conflict_do_update(
+        index_elements=[DailyAnalytics.day],
+        set_={
+            "views": stmt.excluded.views,
+            "visitors": stmt.excluded.visitors,
+            "sessions": stmt.excluded.sessions,
+            "avg_duration_ms": stmt.excluded.avg_duration_ms,
+            "top_paths": stmt.excluded.top_paths,
+            "devices": stmt.excluded.devices,
+            "browsers": stmt.excluded.browsers,
+            "countries": stmt.excluded.countries,
+        },
+    )
+    await db.execute(stmt)
+    await db.flush()
+    return views
+
+
+async def prune_old_views(db: AsyncSession, retention_days: int) -> int:
+    """Delete `page_views` older than `retention_days`; return count deleted."""
+    cutoff = _now_utc() - timedelta(days=retention_days)
+    result = await db.execute(delete(PageView).where(PageView.created_at < cutoff))
+    await db.flush()
+    return result.rowcount or 0
+
+
+async def get_daily_rollup(db: AsyncSession, days: int = 30) -> list[DailyAnalytics]:
+    """Return DailyAnalytics rows for the last `days` days, newest first."""
+    since = (_now_utc() - timedelta(days=days)).date()
+    result = await db.execute(
+        select(DailyAnalytics)
+        .where(DailyAnalytics.day >= since)
+        .order_by(DailyAnalytics.day.desc())
+    )
+    return list(result.scalars().all())

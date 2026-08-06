@@ -1,6 +1,11 @@
 from pydantic_settings import BaseSettings
 from functools import lru_cache
 
+_INSECURE_DEFAULTS = {
+    "secret_key": "change-me-in-production-use-a-long-random-string",
+    "database_url": "postgresql+asyncpg://iotmart:iotmart@localhost:5432/iotmart",
+}
+
 
 class Settings(BaseSettings):
     # Database
@@ -16,6 +21,12 @@ class Settings(BaseSettings):
     debug: bool = False
     environment: str = "development"
     site_name: str = "IoTMart"
+
+    # Uploads
+    upload_quota_bytes: int = 100 * 1024 * 1024  # per-user storage quota (100 MB)
+
+    # Comma-separated list of allowed CORS origins (e.g. "https://shop.example.com")
+    cors_origins: str = "http://localhost:3000"
 
     # ─── Email / SMTP ─────────────────────────────────────────────────────────
     # Leave smtp_host empty to use console/log fallback (development mode).
@@ -35,6 +46,31 @@ class Settings(BaseSettings):
         env_file = "../.env"
         extra = "ignore"
 
+    def validate_runtime(self) -> None:
+        """Fail fast on insecure production configuration.
+
+        Called once at import time: a production boot with default/weak
+        secrets or an unreplaced dev database URL aborts startup instead of
+        silently running insecure.
+        """
+        if self.environment == "production":
+            if self.secret_key in _INSECURE_DEFAULTS or len(self.secret_key) < 32:
+                raise RuntimeError(
+                    "Refusing to boot in production: SECRET_KEY must be set to a "
+                    "unique random value of at least 32 characters."
+                )
+            if self.database_url in _INSECURE_DEFAULTS:
+                raise RuntimeError(
+                    "Refusing to boot in production: DATABASE_URL must be configured."
+                )
+        if self.debug and self.environment == "production":
+            raise RuntimeError("Refusing to boot in production with DEBUG=true.")
+        if self.environment == "production" and not self.smtp_host:
+            raise RuntimeError(
+                "Refusing to boot in production: SMTP_HOST must be configured "
+                "(otherwise password-reset / OTP emails cannot be delivered)."
+            )
+
 
 @lru_cache
 def get_settings() -> Settings:
@@ -42,3 +78,4 @@ def get_settings() -> Settings:
 
 
 settings = get_settings()
+settings.validate_runtime()

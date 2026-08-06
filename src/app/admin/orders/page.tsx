@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { ordersApi } from "@/lib/api";
-import { getAdminToken } from "@/lib/adminAuth";
+import { getAdminSession } from "@/lib/adminAuth";
 import { formatPrice, formatDateShort } from "@/lib/utils";
 import { ORDER_STATUS_COLORS, PAYMENT_STATUS_COLORS } from "@/lib/constants";
 
@@ -11,8 +11,10 @@ const STATUS_TABS = [
   { label: "All",        value: "" },
   { label: "Pending",    value: "pending" },
   { label: "Processing", value: "processing" },
+  { label: "Shipped",    value: "shipped" },
   { label: "Delivered",  value: "delivered" },
   { label: "Cancelled",  value: "cancelled" },
+  { label: "Refunded",   value: "refunded" },
 ];
 
 export default function AdminOrdersPage() {
@@ -23,7 +25,7 @@ export default function AdminOrdersPage() {
   const [search, setSearch]       = useState("");
 
   useEffect(() => {
-    const token = getAdminToken();
+    const token = getAdminSession()?.id ?? null;
     if (!token) {
       setError("Not authenticated.");
       setLoading(false);

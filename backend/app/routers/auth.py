@@ -21,6 +21,7 @@ Existing endpoints (/login, /refresh, /logout, /me, PATCH /me) are unchanged.
 """
 
 from datetime import datetime, timedelta, timezone
+import logging
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from sqlalchemy import select
@@ -29,12 +30,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import settings
 from app.database import get_db
 from app.email_service import generate_otp, hash_otp, send_otp_email, verify_otp
-from app.models.models import EmailPendingVerification, User
+from app.models.models import EmailPendingVerification, PasswordResetToken, User
 from app.schemas.auth import (
     OTPRequest,
     OTPRequestOut,
     OTPVerify,
     OTPVerifyOut,
+    PasswordResetConfirm,
     RegisterWithOTP,
     TokenOut,
     UserLogin,
@@ -42,6 +44,7 @@ from app.schemas.auth import (
     UserUpdate,
 )
 from app.security import (
+    ACCESS_COOKIE,
     create_access_token,
     create_refresh_token,
     decode_token,
@@ -49,6 +52,7 @@ from app.security import (
     hash_password,
     verify_password,
 )
+from app.audit import record as audit
 
 # Use the single app-level limiter so the RateLimitExceeded handler fires
 # correctly and state is shared across all requests.
@@ -58,6 +62,27 @@ router = APIRouter()
 
 REFRESH_COOKIE = "refresh_token"
 _EMAIL_VERIFIED_TYPE = "email_verified"
+
+
+def _set_auth_cookies(response: Response, access: str, refresh: str) -> None:
+    """Set access + refresh JWTs as httpOnly cookies.
+
+    httpOnly + SameSite=Lax keeps the tokens out of JavaScript (XSS-safe);
+    the Secure flag is enforced in production.
+    """
+    secure = settings.environment == "production"
+    response.set_cookie(
+        ACCESS_COOKIE, access,
+        httponly=True, samesite="lax", path="/",
+        max_age=settings.access_token_expire_minutes * 60,
+        secure=secure,
+    )
+    response.set_cookie(
+        REFRESH_COOKIE, refresh,
+        httponly=True, samesite="lax", path="/",
+        max_age=settings.refresh_token_expire_days * 86400,
+        secure=secure,
+    )
 
 
 # ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -145,7 +170,6 @@ async def request_otp(
         await send_otp_email(email, otp)
     except Exception:
         # Don't leak SMTP errors to the client, but log them
-        import logging
         logging.getLogger(__name__).exception("OTP email send failed for %s", email)
 
     response: dict = {
@@ -153,8 +177,9 @@ async def request_otp(
                    f"{settings.otp_expire_minutes} minutes.",
     }
 
-    # Dev mode: expose OTP when SMTP is not configured
-    if not settings.smtp_host:
+    # Dev mode: expose OTP when SMTP is not configured, to aid local testing.
+    # NEVER populated in production — the reset flow relies on real email.
+    if not settings.smtp_host and settings.environment != "production":
         response["dev_otp"] = otp
 
     return OTPRequestOut(**response)
@@ -270,22 +295,124 @@ async def register(
     # 6. Issue tokens
     access = create_access_token(str(user.id))
     refresh = create_refresh_token(str(user.id))
-    response.set_cookie(
-        REFRESH_COOKIE,
-        refresh,
-        httponly=True,
-        samesite="lax",
-        max_age=settings.refresh_token_expire_days * 86400,
-        secure=settings.environment == "production",
-    )
+    _set_auth_cookies(response, access, refresh)
     return TokenOut(access_token=access, user=UserOut.model_validate(user))
+
+
+# ─── Password Reset (OTP for existing users) ────────────────────────────────
+
+@router.post(
+    "/forgot-password",
+    response_model=OTPRequestOut,
+    status_code=200,
+    summary="Request a password-reset OTP for an existing account",
+)
+@limiter.limit("10/hour")
+async def forgot_password(
+    request: Request,
+    body: OTPRequest,
+    db: AsyncSession = Depends(get_db),
+) -> OTPRequestOut:
+    email = body.email.lower().strip()
+
+    # Always answer identically so the endpoint can't be used to enumerate
+    # registered emails; only generate an OTP for accounts that exist.
+    message = (
+        f"If an account exists for {email}, a password reset code has been "
+        f"sent. It expires in {settings.otp_expire_minutes} minutes."
+    )
+
+    user = (await db.execute(select(User).where(User.email == email))).scalar_one_or_none()
+    otp = None
+    if user and user.is_active:
+        otp = generate_otp()
+        hashed = hash_otp(otp)
+        expires_at = _utcnow() + timedelta(minutes=settings.otp_expire_minutes)
+
+        reset = (
+            await db.execute(
+                select(PasswordResetToken).where(PasswordResetToken.email == email)
+            )
+        ).scalar_one_or_none()
+        if reset:
+            reset.hashed_otp = hashed
+            reset.expires_at = expires_at
+            reset.attempts = 0
+            reset.used = False
+            reset.created_at = _utcnow()
+        else:
+            db.add(PasswordResetToken(email=email, hashed_otp=hashed, expires_at=expires_at))
+        await db.flush()
+
+        try:
+            await send_otp_email(email, otp)
+        except Exception:
+            logging.getLogger(__name__).exception(
+                "Password-reset OTP email failed for %s", email
+            )
+
+    response: dict = {"message": message}
+    # Dev convenience — only when SMTP is unavailable AND not in production.
+    if not settings.smtp_host and settings.environment != "production" and otp:
+        response["dev_otp"] = otp
+
+    return OTPRequestOut(**response)
+
+
+@router.post(
+    "/reset-password",
+    status_code=200,
+    summary="Set a new password using the emailed OTP",
+)
+@limiter.limit("20/hour")
+async def reset_password(
+    request: Request,
+    body: PasswordResetConfirm,
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    email = body.email.lower().strip()
+    _invalid = HTTPException(status_code=400, detail="Invalid or expired reset code")
+
+    reset = (
+        await db.execute(select(PasswordResetToken).where(PasswordResetToken.email == email))
+    ).scalar_one_or_none()
+    if not reset or reset.used:
+        raise _invalid
+    if reset.expires_at.replace(tzinfo=timezone.utc) < _utcnow():
+        raise _invalid
+    if reset.attempts >= settings.otp_max_attempts:
+        raise HTTPException(
+            status_code=429,
+            detail="Too many incorrect attempts. Request a new code.",
+        )
+
+    reset.attempts += 1
+    await db.flush()
+
+    if not verify_otp(body.otp, reset.hashed_otp):
+        raise _invalid
+
+    user = (await db.execute(select(User).where(User.email == email))).scalar_one_or_none()
+    if not user or not user.is_active:
+        raise _invalid
+
+    reset.used = True
+    user.hashed_password = hash_password(body.new_password)
+    await db.flush()
+    await audit(db, user, "password.reset", "user", user.id, user.email)
+
+    return {"message": "Password reset successfully. You can now sign in."}
 
 
 # ─── Existing endpoints (unchanged) ──────────────────────────────────────────
 
 @router.post("/login", response_model=TokenOut)
+@limiter.limit("10/minute")
 async def login(
-    body: UserLogin, response: Response, db: AsyncSession = Depends(get_db)
+    request: Request,
+    body: UserLogin,
+    response: Response,
+    db: AsyncSession = Depends(get_db),
 ):
     result = await db.execute(select(User).where(User.email == body.email))
     user = result.scalar_one_or_none()
@@ -295,14 +422,8 @@ async def login(
         raise HTTPException(status_code=403, detail="Account disabled")
     access = create_access_token(str(user.id))
     refresh = create_refresh_token(str(user.id))
-    response.set_cookie(
-        REFRESH_COOKIE,
-        refresh,
-        httponly=True,
-        samesite="lax",
-        max_age=settings.refresh_token_expire_days * 86400,
-        secure=settings.environment == "production",
-    )
+    _set_auth_cookies(response, access, refresh)
+    await audit(db, user, "auth.login", "user", user.id, user.email)
     return TokenOut(access_token=access, user=UserOut.model_validate(user))
 
 
@@ -322,19 +443,13 @@ async def refresh(
         raise HTTPException(status_code=401, detail="User not found")
     access = create_access_token(str(user.id))
     new_refresh = create_refresh_token(str(user.id))
-    response.set_cookie(
-        REFRESH_COOKIE,
-        new_refresh,
-        httponly=True,
-        samesite="lax",
-        max_age=settings.refresh_token_expire_days * 86400,
-        secure=settings.environment == "production",
-    )
+    _set_auth_cookies(response, access, new_refresh)
     return TokenOut(access_token=access, user=UserOut.model_validate(user))
 
 
 @router.post("/logout")
 async def logout(response: Response):
+    response.delete_cookie(ACCESS_COOKIE)
     response.delete_cookie(REFRESH_COOKIE)
     return {"message": "Logged out"}
 

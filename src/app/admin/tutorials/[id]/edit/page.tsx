@@ -8,7 +8,7 @@ import Input from "@/components/ui/Input";
 import Textarea from "@/components/ui/Textarea";
 import Select from "@/components/ui/Select";
 import { tutorialsApi } from "@/lib/api";
-import { getAdminToken } from "@/lib/adminAuth";
+import { getAdminSession } from "@/lib/adminAuth";
 
 const difficultyOptions = [
   { value: "Beginner",     label: "Beginner" },
@@ -48,7 +48,7 @@ export default function AdminEditTutorialPage() {
   // Load tutorial by id — backend GET /{slug} also works by slug,
   // but admin edit uses id so we fetch list and find by id
   useEffect(() => {
-    const token = getAdminToken();
+    const token = getAdminSession()?.id ?? null;
     // fetch all and find by id (admin sees all)
     tutorialsApi
       .list({ page_size: 200 })
@@ -82,7 +82,7 @@ export default function AdminEditTutorialPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const token = getAdminToken();
+    const token = getAdminSession()?.id ?? null;
     if (!token) { setSaveError("Not authenticated."); return; }
     setSaving(true);
     setSaveError("");
@@ -114,7 +114,7 @@ export default function AdminEditTutorialPage() {
 
   const handleDelete = async () => {
     if (!confirm("Delete this tutorial? This cannot be undone.")) return;
-    const token = getAdminToken();
+    const token = getAdminSession()?.id ?? null;
     if (!token) return;
     setDeleting(true);
     try {

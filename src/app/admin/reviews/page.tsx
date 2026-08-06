@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { Star, Trash2, CheckCircle, XCircle } from "lucide-react";
 import { reviewsApi } from "@/lib/api";
-import { getAdminToken } from "@/lib/adminAuth";
+import { getAdminSession } from "@/lib/adminAuth";
 import { formatDateShort } from "@/lib/utils";
 
 type Filter = "all" | "approved" | "pending";
@@ -31,7 +31,7 @@ export default function AdminReviewsPage() {
   const [search, setSearch]     = useState("");
 
   const load = useCallback(() => {
-    const token = getAdminToken();
+    const token = getAdminSession()?.id ?? null;
     if (!token) { setError("Not authenticated."); setLoading(false); return; }
     setLoading(true);
     reviewsApi
@@ -58,7 +58,7 @@ export default function AdminReviewsPage() {
   });
 
   const handleVerify = async (id: string) => {
-    const token = getAdminToken();
+    const token = getAdminSession()?.id ?? null;
     if (!token) return;
     try {
       const updated = await reviewsApi.verify(id, token);
@@ -70,7 +70,7 @@ export default function AdminReviewsPage() {
 
   const handleDelete = async (id: string) => {
     if (!confirm("Delete this review? This cannot be undone.")) return;
-    const token = getAdminToken();
+    const token = getAdminSession()?.id ?? null;
     if (!token) return;
     try {
       await reviewsApi.delete(id, token);

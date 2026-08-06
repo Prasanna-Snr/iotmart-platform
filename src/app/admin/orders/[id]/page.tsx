@@ -13,15 +13,17 @@ import {
   CreditCard,
 } from "lucide-react";
 import { ordersApi } from "@/lib/api";
-import { getAdminToken } from "@/lib/adminAuth";
+import { getAdminSession } from "@/lib/adminAuth";
 import { formatPrice, formatDateShort } from "@/lib/utils";
 import { ORDER_STATUS_COLORS, PAYMENT_STATUS_COLORS } from "@/lib/constants";
 
 const STATUS_OPTIONS = [
   "pending",
   "processing",
+  "shipped",
   "delivered",
   "cancelled",
+  "refunded",
 ] as const;
 
 type OrderStatus = (typeof STATUS_OPTIONS)[number];
@@ -37,7 +39,7 @@ export default function AdminOrderDetailPage() {
   const [saveError, setSaveError] = useState("");
 
   useEffect(() => {
-    const token = getAdminToken();
+    const token = getAdminSession()?.id ?? null;
     if (!token) {
       setError("Not authenticated.");
       setLoading(false);
@@ -54,7 +56,7 @@ export default function AdminOrderDetailPage() {
   }, [id]);
 
   const handleSave = async () => {
-    const token = getAdminToken();
+    const token = getAdminSession()?.id ?? null;
     if (!token) return;
     setSaving(true);
     setSaveError("");

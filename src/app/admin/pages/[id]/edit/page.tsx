@@ -4,7 +4,7 @@ import { useState, useCallback, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, Eye, EyeOff, Save, Plus, Trash2, ChevronUp, ChevronDown, CheckCircle, Globe, FileText } from "lucide-react";
-import { getAdminToken } from "@/lib/adminAuth";
+import { getAdminSession } from "@/lib/adminAuth";
 import { apiPageToLocal, localPageToApi, BLOCK_META, BLOCK_DEFAULTS } from "@/lib/cms-store";
 import { cmsApi } from "@/lib/api";
 import type { CMSPage, Block, RowBlock, ColumnBlock, BlockType } from "@/lib/cms-store";
@@ -352,7 +352,7 @@ export default function PageBuilderPage() {
 
   const handleSave = async () => {
     if (!page) return;
-    const token = getAdminToken();
+    const token = getAdminSession()?.id ?? null;
     if (!token) return;
     setSaving(true);
     setSaveError("");

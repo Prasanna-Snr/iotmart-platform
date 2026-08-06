@@ -1,5 +1,8 @@
 import type { Metadata } from "next";
 import { productsApi, categoriesApi, brandsApi } from "@/lib/api";
+
+// ISR via per-fetch `next.revalidate` in api.ts (route-segment `revalidate`
+// was removed in Next.js v16).
 import ProductCard from "@/components/product/ProductCard";
 import ProductFiltersPanel from "@/components/product/ProductFiltersPanel";
 import PaginationLinks from "@/components/ui/PaginationLinks";

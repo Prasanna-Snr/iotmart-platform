@@ -1,10 +1,13 @@
 import asyncio
+from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, Request, Response, BackgroundTasks
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.security import get_current_admin
+from app.limiter import limiter
 from app.schemas.analytics import (
     TrackRequest, HeartbeatRequest,
     AnalyticsDashboard, AnalyticsSummary,
@@ -16,6 +19,7 @@ from app.services.analytics_service import (
     update_duration, get_summary, get_top_pages,
     get_device_breakdown, get_browser_breakdown,
     get_country_breakdown, get_daily_trend,
+    run_daily_rollup, prune_old_views, get_daily_rollup,
 )
 
 router = APIRouter()
@@ -28,7 +32,33 @@ def _get_client_ip(request: Request) -> str:
     return request.client.host if request.client else "0.0.0.0"
 
 
+async def _get_setting(db: AsyncSession, key: str, default: str) -> str:
+    from app.models.models import SiteSettings
+
+    row = (await db.execute(select(SiteSettings).where(SiteSettings.key == key))).scalar_one_or_none()
+    return row.value if row else default
+
+
+async def _maybe_rollup_yesterday(db: AsyncSession) -> None:
+    """Best-effort lazy rollup for yesterday — never fails the request."""
+    try:
+        from app.models.models import DailyAnalytics
+
+        yesterday = (datetime.now(timezone.utc) - timedelta(days=1)).date()
+        exists = (
+            await db.execute(
+                select(func.count()).select_from(DailyAnalytics).where(DailyAnalytics.day == yesterday)
+            )
+        ).scalar_one() or 0
+        if not exists:
+            await run_daily_rollup(db, day=yesterday)
+            await db.flush()
+    except Exception:
+        pass
+
+
 @router.post("/track", status_code=204)
+@limiter.limit("120/minute")
 async def track_page_view(
     body: TrackRequest,
     request: Request,
@@ -80,8 +110,10 @@ async def _bg_upsert_and_prune(path: str, session_id: str, visitor_id: str):
 
 
 @router.post("/heartbeat", status_code=204)
+@limiter.limit("60/minute")
 async def heartbeat(
     body: HeartbeatRequest,
+    request: Request,
     background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(get_db),
 ):
@@ -159,4 +191,50 @@ async def daily_trend(
     db: AsyncSession = Depends(get_db),
     _=Depends(get_current_admin),
 ):
+    await _maybe_rollup_yesterday(db)
     return await get_daily_trend(db, days=days)
+
+
+@router.get("/admin/rollup")
+async def admin_rollup_rows(
+    days: int = 30,
+    db: AsyncSession = Depends(get_db),
+    _=Depends(get_current_admin),
+):
+    """Pre-aggregated daily rows for the admin UI (newest first)."""
+    rows = await get_daily_rollup(db, days=days)
+    return [
+        {
+            "day": str(r.day),
+            "views": r.views,
+            "visitors": r.visitors,
+            "sessions": r.sessions,
+            "avg_duration_ms": r.avg_duration_ms,
+            "top_paths": r.top_paths or [],
+            "devices": r.devices or [],
+            "browsers": r.browsers or [],
+            "countries": r.countries or [],
+        }
+        for r in rows
+    ]
+
+
+@router.post("/admin/rollup")
+@limiter.limit("20/hour")
+async def admin_rollup_run(
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+    _=Depends(get_current_admin),
+):
+    """Roll up the trailing 7 days and prune views older than the retention window."""
+    raw = await _get_setting(db, "analytics_retention_days", "90")
+    retention_days = int(raw) if raw else 90
+
+    today = datetime.now(timezone.utc).date()
+    days_done = 0
+    for offset in range(1, 8):
+        await run_daily_rollup(db, day=today - timedelta(days=offset))
+        days_done += 1
+
+    pruned = await prune_old_views(db, retention_days)
+    return {"days": days_done, "pruned": pruned}

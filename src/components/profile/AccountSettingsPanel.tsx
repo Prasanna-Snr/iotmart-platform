@@ -41,7 +41,7 @@ export default function AccountSettingsPanel({
     if (!name.trim()) { setProfError("Name is required"); return; }
     setProfSaving(true);
     try {
-      await authApi.updateMe({ name: name.trim(), phone: phone.trim() || undefined }, token);
+      await authApi.updateMe({ name: name.trim(), phone: phone.trim() || undefined });
       onNameSaved(name.trim());
       setProfSaved(true);
       setTimeout(() => setProfSaved(false), 2500);
@@ -59,7 +59,7 @@ export default function AccountSettingsPanel({
     if (newPwd !== confirmPwd) { setPwdError("Passwords do not match"); return; }
     setPwdSaving(true);
     try {
-      await authApi.updateMe({ password: newPwd }, token);
+      await authApi.updateMe({ password: newPwd });
       setNewPwd(""); setConfirmPwd("");
       setPwdSaved(true);
       setTimeout(() => setPwdSaved(false), 2500);
