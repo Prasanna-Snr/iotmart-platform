@@ -4,6 +4,7 @@ import {
   createContext,
   useContext,
   useReducer,
+  useState,
   useEffect,
   type ReactNode,
 } from "react";
@@ -82,6 +83,12 @@ function cartReducer(state: CartState, action: CartAction): CartState {
 
 export function CartProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(cartReducer, { items: [] });
+  // Don't persist until the stored cart has been read once. Without this the
+  // persist effect would write an empty cart over the saved one on the first
+  // render — and, because React StrictMode double-runs effects in dev, the
+  // second run of the load effect would then read that empty value back and
+  // silently drop the user's cart on any full page load.
+  const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => {
     try {
@@ -93,11 +100,14 @@ export function CartProvider({ children }: { children: ReactNode }) {
     } catch {
       // ignore
     }
+    setHydrated(true);
   }, []);
 
   useEffect(() => {
-    localStorage.setItem("iotmart-cart", JSON.stringify(state.items));
-  }, [state.items]);
+    if (hydrated) {
+      localStorage.setItem("iotmart-cart", JSON.stringify(state.items));
+    }
+  }, [state.items, hydrated]);
 
   const addToCart = (product: Product, quantity = 1) =>
     dispatch({ type: "ADD_ITEM", product, quantity });
