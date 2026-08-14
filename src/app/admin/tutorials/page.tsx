@@ -4,13 +4,13 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { Plus, Pencil } from "lucide-react";
-import { tutorialsApi } from "@/lib/api";
+import { tutorialsApi, type Tutorial } from "@/lib/api";
 import { DIFFICULTY_COLORS } from "@/lib/constants";
 
 const DIFFICULTIES = ["Beginner", "Intermediate", "Advanced"];
 
 export default function AdminTutorialsPage() {
-  const [allTutorials, setAllTutorials] = useState<any[]>([]);
+  const [allTutorials, setAllTutorials] = useState<Tutorial[]>([]);
   const [loading, setLoading]           = useState(true);
   const [error, setError]               = useState("");
   const [search, setSearch]             = useState("");
@@ -99,7 +99,7 @@ export default function AdminTutorialsPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#F0E9E3]">
-                {filtered.map((tut: any) => (
+                {filtered.map((tut: Tutorial) => (
                   <tr key={tut.id} className="hover:bg-[#F0E9E3]/30 transition-colors">
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-3">

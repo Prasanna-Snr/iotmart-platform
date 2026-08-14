@@ -2,20 +2,20 @@
 
 import { useState, useEffect } from "react";
 import { Trash2, Globe, FileText } from "lucide-react";
-import { cmsApi } from "@/lib/api";
+import { cmsApi, type CMSPage } from "@/lib/api";
 import { getAdminSession } from "@/lib/adminAuth";
 
-interface CMSPageItem {
-  id: string;
-  title: string;
-  slug: string;
-  status: string;
-  block_count: number;
-  updated_at: string;
+function errMsg(err: unknown, fallback: string): string {
+  if (err instanceof Error) return err.message ?? fallback;
+  if (typeof err === "object" && err !== null && "message" in err) {
+    const message = err.message;
+    if (typeof message === "string") return message;
+  }
+  return fallback;
 }
 
 export default function AdminPagesPage() {
-  const [pages, setPages] = useState<CMSPageItem[]>([]);
+  const [pages, setPages] = useState<CMSPage[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError]     = useState("");
 
@@ -37,8 +37,8 @@ export default function AdminPagesPage() {
     try {
       await cmsApi.delete(id, token);
       load();
-    } catch (e: any) {
-      setError(e.message ?? "Failed to delete page.");
+    } catch (e) {
+      setError(errMsg(e, "Failed to delete page."));
     }
   };
 

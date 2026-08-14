@@ -68,8 +68,8 @@ export default function ContactPage() {
       if (form.website) payload.website = form.website;
       await contactApi.submit(payload);
       setSubmitted(true);
-    } catch (err: any) {
-      setSubmitError(err.message ?? "Failed to send message. Please try again.");
+    } catch (err) {
+      setSubmitError((err as { message?: string }).message ?? "Failed to send message. Please try again.");
     } finally {
       setLoading(false);
     }

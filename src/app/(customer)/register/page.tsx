@@ -9,6 +9,11 @@ import { isValidEmail } from "@/lib/utils";
 import { authApi } from "@/lib/api";
 import { useCustomerAuth } from "@/lib/customerAuth";
 
+interface AuthResponse {
+  access_token: string;
+  user: { id: string; name: string; email: string; role: string };
+}
+
 // ─── Step types ───────────────────────────────────────────────────────────────
 type Step = "email" | "otp" | "details";
 
@@ -51,8 +56,8 @@ export default function RegisterPage() {
       if (res.dev_otp) setOtp(res.dev_otp);
       setStep("otp");
       startResendCooldown();
-    } catch (err: any) {
-      setError(err.message ?? "Failed to send verification code. Please try again.");
+    } catch (err) {
+      setError((err as { message?: string }).message ?? "Failed to send verification code. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -72,8 +77,8 @@ export default function RegisterPage() {
       const res = await authApi.verifyOtp({ email, otp: otp.trim() });
       setVerificationToken(res.verification_token);
       setStep("details");
-    } catch (err: any) {
-      setError(err.message ?? "Invalid or expired code. Please try again.");
+    } catch (err) {
+      setError((err as { message?: string }).message ?? "Invalid or expired code. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -90,16 +95,16 @@ export default function RegisterPage() {
 
     setLoading(true);
     try {
-      const data: any = await authApi.register({
+      const data = (await authApi.register({
         name: name.trim(),
         email,
         password,
         verification_token: verificationToken,
-      });
+      })) as AuthResponse;
       setAuth(data.access_token, data.user);
       router.push(redirectTo);
-    } catch (err: any) {
-      setError(err.message ?? "Registration failed. Please try again.");
+    } catch (err) {
+      setError((err as { message?: string }).message ?? "Registration failed. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -125,8 +130,8 @@ export default function RegisterPage() {
       if (res.dev_otp) setOtp(res.dev_otp);
       setOtp("");
       startResendCooldown();
-    } catch (err: any) {
-      setError(err.message ?? "Failed to resend code.");
+    } catch (err) {
+      setError((err as { message?: string }).message ?? "Failed to resend code.");
     } finally {
       setLoading(false);
     }
@@ -224,7 +229,7 @@ export default function RegisterPage() {
                   className="w-full text-center text-2xl font-mono tracking-[0.6em] border border-[#CDBBAD] rounded-xl py-3 focus:outline-none focus:ring-2 focus:ring-[#5D1C34]/30 focus:border-[#5D1C34]"
                 />
                 <p className="text-xs text-[#899581] mt-1.5 text-center">
-                  Check your spam folder if you don't see it.
+                  Check your spam folder if you don&apos;t see it.
                 </p>
               </div>
 

@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import Image from "next/image";
 import { Search, Package, BookOpen } from "lucide-react";
-import { productsApi, tutorialsApi } from "@/lib/api";
+import { productsApi, tutorialsApi, type ProductListItem, type Tutorial } from "@/lib/api";
 import { formatPrice } from "@/lib/utils";
 import { DIFFICULTY_COLORS } from "@/lib/constants";
 
@@ -124,7 +124,7 @@ export default async function SearchPage({ searchParams }: PageProps) {
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                {products.map((product: any) => (
+                {products.map((product: ProductListItem) => (
                   <Link
                     key={product.id}
                     href={`/products/${product.slug}`}
@@ -186,7 +186,7 @@ export default async function SearchPage({ searchParams }: PageProps) {
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                {tutorials.map((tut: any) => (
+                {tutorials.map((tut: Tutorial) => (
                   <Link
                     key={tut.id}
                     href={`/tutorials/${tut.slug}`}

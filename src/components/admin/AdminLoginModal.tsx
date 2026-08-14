@@ -1,9 +1,16 @@
 "use client";
 
 import { useState } from "react";
+import type { User } from "@/lib/api";
+
+interface LoginResponse {
+  access_token: string;
+  detail?: string;
+  user: User;
+}
 
 interface Props {
-  onLogin: (token: string, user: any) => void;
+  onLogin: (token: string, user: User) => void;
 }
 
 export default function AdminLoginModal({ onLogin }: Props) {
@@ -22,7 +29,7 @@ export default function AdminLoginModal({ onLogin }: Props) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password }),
       });
-      const data = await res.json();
+      const data: LoginResponse = await res.json();
       if (!res.ok) {
         setError(data.detail ?? "Login failed");
         return;

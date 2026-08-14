@@ -12,16 +12,26 @@ import {
   Plus,
   BookOpen,
 } from "lucide-react";
-import { adminApi } from "@/lib/api";
+import { adminApi, type AdminDashboard, type Order } from "@/lib/api";
 import { getAdminSession } from "@/lib/adminAuth";
 import { formatPrice, formatDateShort } from "@/lib/utils";
 import { ORDER_STATUS_COLORS } from "@/lib/constants";
 
+interface AuditEntry {
+  id?: string;
+  created_at: string;
+  action: string;
+  actor_email: string;
+  target_type: string;
+  target_id: string | null;
+  detail: string | null;
+}
+
 export default function AdminDashboardPage() {
-  const [data, setData]     = useState<any>(null);
+  const [data, setData]     = useState<AdminDashboard | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError]   = useState("");
-  const [activity, setActivity] = useState<any[] | null>(null);
+  const [activity, setActivity] = useState<AuditEntry[] | null>(null);
 
   useEffect(() => {
     const token = getAdminSession()?.id ?? null;
@@ -44,7 +54,7 @@ export default function AdminDashboardPage() {
         if (!res.ok) throw new Error("audit unavailable");
         return res.json();
       })
-      .then((rows: any) => {
+      .then((rows: AuditEntry[]) => {
         if (!cancelled) setActivity(Array.isArray(rows) ? rows : []);
       })
       .catch(() => {
@@ -101,8 +111,8 @@ export default function AdminDashboardPage() {
   const monthly = data.monthly_revenue ?? [];
   const topProducts = data.top_products ?? [];
   const recentOrders = data.recent_orders ?? [];
-  const maxRevenue = Math.max(1, ...monthly.map((d: any) => d.value));
-  const maxSales = Math.max(1, ...topProducts.map((d: any) => d.sold));
+  const maxRevenue = Math.max(1, ...monthly.map((d) => d.value));
+  const maxSales = Math.max(1, ...topProducts.map((d) => d.sold));
 
   return (
     <div>
@@ -160,7 +170,7 @@ export default function AdminDashboardPage() {
           </h2>
           {monthly.length > 0 ? (
             <div className="flex items-end gap-2 h-40">
-              {monthly.map((d: any) => (
+              {monthly.map((d) => (
                 <div key={d.label} className="flex-1 flex flex-col items-center gap-1">
                   <span className="text-xs text-[#899581]">
                     ${(d.value / 1000).toFixed(1)}k
@@ -185,7 +195,7 @@ export default function AdminDashboardPage() {
           </h2>
           {topProducts.length > 0 ? (
             <div className="space-y-3">
-              {topProducts.map((d: any) => (
+              {topProducts.map((d) => (
                 <div key={d.name}>
                   <div className="flex justify-between text-xs mb-1">
                     <span className="text-[#11100E] font-medium truncate mr-2">
@@ -235,7 +245,7 @@ export default function AdminDashboardPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#F0E9E3]">
-                {recentOrders.map((order: any) => (
+                {recentOrders.map((order: Order) => (
                   <tr key={order.id} className="hover:bg-[#F0E9E3]/30 transition-colors">
                     <td className="px-4 py-3 font-mono text-xs text-[#11100E]">
                       {order.order_number?.slice(0, 16) ?? ""}
@@ -282,7 +292,7 @@ export default function AdminDashboardPage() {
           </div>
           {activity.length > 0 ? (
             <ul className="divide-y divide-[#F0E9E3]">
-              {activity.map((entry: any) => (
+              {activity.map((entry: AuditEntry) => (
                 <li key={entry.id ?? `${entry.created_at}-${entry.action}`} className="flex items-start gap-3 px-5 py-3">
                   <div className="flex-1 min-w-0">
                     <p className="text-xs text-[#11100E]">

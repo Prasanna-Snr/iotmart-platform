@@ -7,9 +7,18 @@ import { ArrowLeft } from "lucide-react";
 import Input from "@/components/ui/Input";
 import Textarea from "@/components/ui/Textarea";
 import Select from "@/components/ui/Select";
-import { tutorialsApi } from "@/lib/api";
+import { tutorialsApi, type TutorialCategory } from "@/lib/api";
 import { getAdminSession } from "@/lib/adminAuth";
 import { slugify } from "@/lib/utils";
+
+function errMsg(err: unknown, fallback: string): string {
+  if (err instanceof Error) return err.message ?? fallback;
+  if (typeof err === "object" && err !== null && "message" in err) {
+    const message = err.message;
+    if (typeof message === "string") return message;
+  }
+  return fallback;
+}
 
 const difficultyOptions = [
   { value: "Beginner",     label: "Beginner" },
@@ -25,7 +34,7 @@ const langOptions = [
 
 export default function AdminAddTutorialPage() {
   const router = useRouter();
-  const [categories, setCategories] = useState<any[]>([]);
+  const [categories, setCategories] = useState<TutorialCategory[]>([]);
   const [form, setForm] = useState({
     title: "", slug: "", short_description: "", description: "",
     difficulty: "Beginner", category_id: "", estimated_time: "",
@@ -86,8 +95,8 @@ export default function AdminAddTutorialPage() {
         published:         form.published,
       }, token);
       router.push("/admin/tutorials");
-    } catch (err: any) {
-      setSaveError(err.message ?? "Failed to save tutorial.");
+    } catch (err) {
+      setSaveError(errMsg(err, "Failed to save tutorial."));
     } finally {
       setSaving(false);
     }

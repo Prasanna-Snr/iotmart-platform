@@ -4,7 +4,8 @@ import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { Heart, Trash2, ShoppingCart } from "lucide-react";
-import { wishlistApi } from "@/lib/api";
+import { wishlistApi, type WishlistItem } from "@/lib/api";
+import type { Product as UiProduct } from "@/types";
 import { formatPrice } from "@/lib/utils";
 import { useCart } from "@/context/CartContext";
 
@@ -12,14 +13,9 @@ interface Props {
   token: string;
 }
 
-interface WishItem {
-  id: string;
-  product: any;
-}
-
 export default function WishlistPanel({ token }: Props) {
   const { addToCart } = useCart();
-  const [items, setItems] = useState<WishItem[]>([]);
+  const [items, setItems] = useState<WishlistItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -38,8 +34,8 @@ export default function WishlistPanel({ token }: Props) {
     try {
       await wishlistApi.remove(productId, token);
       load();
-    } catch (e: any) {
-      setError(e.message ?? "Failed to remove item.");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to remove item.");
     }
   };
 
@@ -91,7 +87,7 @@ export default function WishlistPanel({ token }: Props) {
                 </div>
                 <div className="flex items-center gap-2 mt-3">
                   <button
-                    onClick={() => addToCart(item.product, 1)}
+                    onClick={() => addToCart(item.product as unknown as UiProduct, 1)}
                     disabled={!inStock}
                     className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg bg-[#5D1C34] text-white hover:bg-[#4a1628] disabled:bg-[#CDBBAD]/30 disabled:text-[#899581] disabled:cursor-not-allowed transition-colors"
                   >

@@ -7,8 +7,17 @@ import { ArrowLeft, CheckCircle, Trash2 } from "lucide-react";
 import Input from "@/components/ui/Input";
 import Textarea from "@/components/ui/Textarea";
 import Select from "@/components/ui/Select";
-import { tutorialsApi } from "@/lib/api";
+import { tutorialsApi, type TutorialCategory, type Tutorial } from "@/lib/api";
 import { getAdminSession } from "@/lib/adminAuth";
+
+function errMsg(err: unknown, fallback: string): string {
+  if (err instanceof Error) return err.message ?? fallback;
+  if (typeof err === "object" && err !== null && "message" in err) {
+    const message = err.message;
+    if (typeof message === "string") return message;
+  }
+  return fallback;
+}
 
 const difficultyOptions = [
   { value: "Beginner",     label: "Beginner" },
@@ -26,7 +35,7 @@ export default function AdminEditTutorialPage() {
   const { id } = useParams<{ id: string }>();
   const router  = useRouter();
 
-  const [categories, setCategories] = useState<any[]>([]);
+  const [categories, setCategories] = useState<TutorialCategory[]>([]);
   const [loading, setLoading]   = useState(true);
   const [error, setError]       = useState("");
   const [saving, setSaving]     = useState(false);
@@ -48,12 +57,11 @@ export default function AdminEditTutorialPage() {
   // Load tutorial by id — backend GET /{slug} also works by slug,
   // but admin edit uses id so we fetch list and find by id
   useEffect(() => {
-    const token = getAdminSession()?.id ?? null;
     // fetch all and find by id (admin sees all)
     tutorialsApi
       .list({ page_size: 200 })
       .then((data) => {
-        const tut = data.items.find((t: any) => t.id === id);
+        const tut = data.items.find((t: Tutorial) => t.id === id);
         if (!tut) { setError("Tutorial not found."); return; }
         setForm({
           title:             tut.title ?? "",
@@ -105,8 +113,8 @@ export default function AdminEditTutorialPage() {
       }, token);
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);
-    } catch (err: any) {
-      setSaveError(err.message ?? "Failed to save.");
+    } catch (err) {
+      setSaveError(errMsg(err, "Failed to save."));
     } finally {
       setSaving(false);
     }
@@ -120,8 +128,8 @@ export default function AdminEditTutorialPage() {
     try {
       await tutorialsApi.delete(id, token);
       router.push("/admin/tutorials");
-    } catch (err: any) {
-      setSaveError(err.message ?? "Failed to delete.");
+    } catch (err) {
+      setSaveError(errMsg(err, "Failed to delete."));
       setDeleting(false);
     }
   };

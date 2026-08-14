@@ -3,15 +3,44 @@
 import Image from "next/image";
 import Link from "next/link";
 import { ShoppingCart, Heart } from "lucide-react";
-import type { Product } from "@/types";
+import type { Product as ApiProduct, ProductListItem } from "@/lib/api";
+import type { Product as UiProduct } from "@/types";
 import { formatPrice, calculateDiscount, cn } from "@/lib/utils";
 import StarRating from "@/components/ui/StarRating";
 import Badge from "@/components/ui/Badge";
 import { useCart } from "@/context/CartContext";
 import { useWishlist } from "@/context/WishlistContext";
 
+/** Shared minimal shape of the fields ProductCard reads. API data arrives
+ *  snake_case, static/cart data uses camelCase — both are accepted. */
+interface ProductCardSource {
+  id: string;
+  name: string;
+  slug: string;
+  price: number;
+  rating?: number;
+  stock?: number;
+  images?: string[];
+  category?: { name?: string; slug?: string } | null;
+  brand?: { name?: string; slug?: string } | null;
+  originalPrice?: number | null;
+  original_price?: number | null;
+  inStock?: boolean;
+  in_stock?: boolean;
+  newArrival?: boolean;
+  new_arrival?: boolean;
+  bestSeller?: boolean;
+  best_seller?: boolean;
+  reviewCount?: number;
+  review_count?: number;
+  shortDescription?: string;
+  short_description?: string;
+}
+
+type ProductCardInput = ApiProduct | ProductListItem | UiProduct;
+
 interface ProductCardProps {
-  product: Product;
+  product: ProductCardInput;
   className?: string;
   compact?: boolean;
 }
@@ -25,18 +54,19 @@ export default function ProductCard({
   const { isInWishlist, toggleWishlist } = useWishlist();
 
   // Normalise: API returns snake_case, static data uses camelCase
+  const source: ProductCardSource = raw;
   const product = {
-    ...raw,
-    originalPrice: (raw as any).originalPrice ?? (raw as any).original_price,
-    inStock:       (raw as any).inStock       ?? (raw as any).in_stock ?? (raw as any).stock > 0,
-    newArrival:    (raw as any).newArrival    ?? (raw as any).new_arrival,
-    bestSeller:    (raw as any).bestSeller    ?? (raw as any).best_seller,
-    reviewCount:   (raw as any).reviewCount   ?? (raw as any).review_count ?? 0,
-    shortDescription: (raw as any).shortDescription ?? (raw as any).short_description ?? "",
-    category: (raw as any).category ?? { name: "—", slug: "" },
-    brand:    (raw as any).brand    ?? { name: "—", slug: "" },
-    images:   (raw as any).images   ?? [],
-  };
+    ...source,
+    originalPrice: source.originalPrice ?? source.original_price,
+    inStock:       source.inStock ?? source.in_stock ?? (source.stock ?? 0) > 0,
+    newArrival:    source.newArrival ?? source.new_arrival,
+    bestSeller:    source.bestSeller ?? source.best_seller,
+    reviewCount:   source.reviewCount ?? source.review_count ?? 0,
+    shortDescription: source.shortDescription ?? source.short_description ?? "",
+    category: source.category ?? { name: "—", slug: "" },
+    brand:    source.brand    ?? { name: "—", slug: "" },
+    images:   source.images   ?? [],
+  } as UiProduct;
 
   const discount = product.originalPrice
     ? calculateDiscount(product.originalPrice, product.price)

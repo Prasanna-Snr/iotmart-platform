@@ -4,16 +4,27 @@ import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, Pencil, Trash2, AlertCircle, Star, Package, Tag, Box } from "lucide-react";
-import { productsApi } from "@/lib/api";
+import { productsApi, type Product, type Review } from "@/lib/api";
 import { getAdminSession } from "@/lib/adminAuth";
 import { formatPrice } from "@/lib/utils";
+
+interface BackendSpec { label: string; value: string }
+
+function errMsg(err: unknown, fallback: string): string {
+  if (err instanceof Error) return err.message ?? fallback;
+  if (typeof err === "object" && err !== null && "message" in err) {
+    const message = err.message;
+    if (typeof message === "string") return message;
+  }
+  return fallback;
+}
 
 export default function AdminProductDetailPage() {
   const params = useParams();
   const router = useRouter();
   const productId = params.id as string;
 
-  const [product, setProduct] = useState<any>(null);
+  const [product, setProduct] = useState<Product | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [deleting, setDeleting] = useState(false);
@@ -28,15 +39,16 @@ export default function AdminProductDetailPage() {
   }, [productId]);
 
   const handleDelete = async () => {
-    if (!confirm(`Delete "${product?.name}"? This cannot be undone.`)) return;
+    if (!product) return;
+    if (!confirm(`Delete "${product.name}"? This cannot be undone.`)) return;
     const token = getAdminSession()?.id ?? null;
     if (!token) { setError("Not authenticated."); return; }
     setDeleting(true);
     try {
       await productsApi.delete(product.id, token);
       router.push("/admin/products");
-    } catch (err: any) {
-      setError(err.message ?? "Failed to delete.");
+    } catch (err) {
+      setError(errMsg(err, "Failed to delete."));
       setDeleting(false);
     }
   };
@@ -172,7 +184,7 @@ export default function AdminProductDetailPage() {
             <div className="bg-white rounded-xl border border-[#CDBBAD]/50 p-5">
               <h2 className="font-semibold text-[#11100E] mb-3">Specifications</h2>
               <div className="divide-y divide-[#F0E9E3]">
-                {product.specs.map((spec: any, idx: number) => (
+                {(product.specs as unknown as BackendSpec[]).map((spec, idx: number) => (
                   <div key={idx} className="flex py-2 gap-4">
                     <span className="text-xs font-medium text-[#899581] w-40 flex-shrink-0">{spec.label}</span>
                     <span className="text-xs text-[#11100E]">{spec.value}</span>
@@ -189,7 +201,7 @@ export default function AdminProductDetailPage() {
                 Reviews ({product.review_count ?? product.reviews.length})
               </h2>
               <div className="space-y-4">
-                {product.reviews.map((r: any) => (
+                {product.reviews.map((r: Review) => (
                   <div key={r.id} className="border-b border-[#F0E9E3] pb-4 last:border-0 last:pb-0">
                     <div className="flex items-center justify-between mb-1">
                       <span className="text-sm font-medium text-[#11100E]">{r.user_name}</span>
@@ -290,11 +302,11 @@ export default function AdminProductDetailPage() {
           {/* Flags */}
           <div className="bg-white rounded-xl border border-[#CDBBAD]/50 p-5 space-y-2">
             <h2 className="font-semibold text-[#11100E]">Flags</h2>
-            {[
+            {([
               { key: "featured",    label: "Featured" },
               { key: "new_arrival", label: "New Arrival" },
               { key: "best_seller", label: "Best Seller" },
-            ].map(({ key, label }) => (
+            ] as const).map(({ key, label }) => (
               <div key={key} className="flex items-center justify-between">
                 <span className="text-sm text-[#899581]">{label}</span>
                 <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${product[key] ? "bg-green-50 text-green-700" : "bg-[#F0E9E3] text-[#CDBBAD]"}`}>

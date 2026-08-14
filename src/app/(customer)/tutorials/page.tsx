@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { BookOpen } from "lucide-react";
-import { tutorialsApi } from "@/lib/api";
+import { tutorialsApi, type Tutorial as ApiTutorial, type TutorialCategory } from "@/lib/api";
+import type { Tutorial as UiTutorial } from "@/types";
 
 // ISR via per-fetch `next.revalidate` in api.ts (route-segment `revalidate`
 // was removed in Next.js v16).
@@ -46,7 +47,7 @@ export default async function TutorialsPage({ searchParams }: PageProps) {
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{
-            __html: jsonLdString(tutorialListJsonLd(items)),
+            __html: jsonLdString(tutorialListJsonLd(items as unknown as UiTutorial[])),
           }}
         />
       )}
@@ -67,7 +68,7 @@ export default async function TutorialsPage({ searchParams }: PageProps) {
           className={`px-4 py-1.5 rounded-full text-sm font-medium border transition-colors ${!params.category ? "bg-[#5D1C34] text-white border-[#5D1C34]" : "border-[#CDBBAD] text-[#899581] hover:border-[#5D1C34]"}`}>
           All
         </Link>
-        {categories.map((cat: any) => {
+        {categories.map((cat: TutorialCategory) => {
           const p = new URLSearchParams(params); p.set("category", cat.slug); p.delete("page");
           return (
             <Link key={cat.id} href={`/tutorials?${p.toString()}`}
@@ -108,7 +109,7 @@ export default async function TutorialsPage({ searchParams }: PageProps) {
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-          {items.map((tut: any) => <TutorialCard key={tut.id} tutorial={tut} />)}
+          {items.map((tut: ApiTutorial) => <TutorialCard key={tut.id} tutorial={tut} />)}
         </div>
       )}
 

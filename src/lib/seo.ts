@@ -372,7 +372,7 @@ export interface BreadcrumbItem {
   href?: string;
 }
 
-export function breadcrumbJsonLd(items: BreadcrumbItem[], prefix?: string) {
+export function breadcrumbJsonLd(items: BreadcrumbItem[]) {
   const allItems = [{ label: "Home", href: "/" }, ...items];
 
   return {

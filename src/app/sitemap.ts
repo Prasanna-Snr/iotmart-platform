@@ -1,6 +1,6 @@
 import type { MetadataRoute } from "next";
 import { SITE_URL } from "@/lib/constants";
-import { productsApi, tutorialsApi } from "@/lib/api";
+import { productsApi, tutorialsApi, type ProductListItem, type Tutorial } from "@/lib/api";
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const now = new Date();
@@ -25,7 +25,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   let productRoutes: MetadataRoute.Sitemap = [];
   try {
     const data = await productsApi.list({ page: 1, page_size: 1000 });
-    productRoutes = data.items.map((p: any) => ({
+    productRoutes = data.items.map((p: ProductListItem) => ({
       url:             `${SITE_URL}/products/${p.slug}`,
       lastModified:    p.updated_at ? new Date(p.updated_at) : now,
       changeFrequency: "weekly" as const,
@@ -37,7 +37,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   let tutorialRoutes: MetadataRoute.Sitemap = [];
   try {
     const data = await tutorialsApi.list({ page: 1, page_size: 1000, published: true });
-    tutorialRoutes = data.items.map((t: any) => ({
+    tutorialRoutes = data.items.map((t: Tutorial) => ({
       url:             `${SITE_URL}/tutorials/${t.slug}`,
       lastModified:    t.updated_at ? new Date(t.updated_at) : now,
       changeFrequency: "monthly" as const,

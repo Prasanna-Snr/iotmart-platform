@@ -9,7 +9,7 @@ import { useRouter } from "next/navigation";
 import { Check, ChevronRight } from "lucide-react";
 import { useCart } from "@/context/CartContext";
 import { useCustomerAuth } from "@/lib/customerAuth";
-import { ordersApi, authApi, addressesApi, couponsApi } from "@/lib/api";
+import { ordersApi, authApi, addressesApi, couponsApi, type Address, type Order } from "@/lib/api";
 import Input from "@/components/ui/Input";
 import {
   formatPrice,
@@ -54,7 +54,7 @@ export default function CheckoutPage() {
   const [orderError, setOrderError] = useState("");
   const [placingOrder, setPlacingOrder] = useState(false);
   const [userEmail, setUserEmail] = useState("");
-  const [savedAddresses, setSavedAddresses] = useState<any[]>([]);
+  const [savedAddresses, setSavedAddresses] = useState<Address[]>([]);
   const [couponCode, setCouponCode] = useState("");
   const [couponState, setCouponState] = useState<"idle" | "loading" | "valid" | "error">("idle");
   const [couponMessage, setCouponMessage] = useState("");
@@ -70,11 +70,11 @@ export default function CheckoutPage() {
   // Fetch logged-in user's email
   useEffect(() => {
     if (user) {
-      authApi.me().then((u: any) => setUserEmail(u.email ?? "")).catch(() => {});
+      authApi.me().then((u) => setUserEmail(u.email ?? "")).catch(() => {});
     }
   }, [user]);
 
-  const applyAddress = (a: any) => {
+  const applyAddress = (a: Address) => {
     const name = (a.full_name ?? "").split(" ");
     setShipping({
       firstName: name[0] ?? "",
@@ -98,7 +98,6 @@ export default function CheckoutPage() {
         if (def) applyAddress(def);
       })
       .catch(() => {});
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
   const shippingCost = calculateShipping(subtotal, freeShippingThreshold, defaultShippingCost);
@@ -121,10 +120,10 @@ export default function CheckoutPage() {
         setCouponDiscount(0);
         setCouponMessage(res.message ?? "Invalid or expired coupon code.");
       }
-    } catch (e: any) {
+    } catch (e) {
       setCouponState("error");
       setCouponDiscount(0);
-      setCouponMessage(e.message ?? "Could not validate coupon.");
+      setCouponMessage((e as { message?: string }).message ?? "Could not validate coupon.");
     }
   };
 
@@ -178,12 +177,12 @@ export default function CheckoutPage() {
         payment_method: paymentMethod,
         ...(couponState === "valid" && couponCode ? { coupon_code: couponCode } : {}),
       };
-      const order: any = await ordersApi.create(payload, "");
+      const order = (await ordersApi.create(payload, "")) as Order;
       setOrderNumber(order.order_number);
       clearCart();
       setStep(3);
-    } catch (err: any) {
-      setOrderError(err.message ?? "Failed to place order. Please try again.");
+    } catch (err) {
+      setOrderError((err as { message?: string }).message ?? "Failed to place order. Please try again.");
     } finally {
       setPlacingOrder(false);
     }

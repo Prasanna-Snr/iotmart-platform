@@ -3,15 +3,17 @@
 import { useState, useEffect, useCallback } from "react";
 import { Plus, Trash2, AlertCircle, CheckCircle, Box, Edit2, X } from "lucide-react";
 import Input from "@/components/ui/Input";
-import { brandsApi } from "@/lib/api";
+import { brandsApi, type Brand } from "@/lib/api";
 import { getAdminSession } from "@/lib/adminAuth";
 import { slugify } from "@/lib/utils";
 
-interface BrandItem {
-  id: string;
-  name: string;
-  slug: string;
-  logo: string | null;
+function errMsg(err: unknown, fallback: string): string {
+  if (err instanceof Error) return err.message ?? fallback;
+  if (typeof err === "object" && err !== null && "message" in err) {
+    const message = err.message;
+    if (typeof message === "string") return message;
+  }
+  return fallback;
 }
 
 interface FormState {
@@ -23,7 +25,7 @@ interface FormState {
 const EMPTY_FORM: FormState = { name: "", slug: "", logo: "" };
 
 export default function AdminBrandsPage() {
-  const [brands, setBrands] = useState<BrandItem[]>([]);
+  const [brands, setBrands] = useState<Brand[]>([]);
   const [loadError, setLoadError] = useState("");
   const [loading, setLoading] = useState(true);
 
@@ -56,9 +58,9 @@ export default function AdminBrandsPage() {
     setLoadError("");
     try {
       const data = await brandsApi.list();
-      setBrands(data as BrandItem[]);
-    } catch (err: any) {
-      setLoadError(err.message ?? "Failed to load brands.");
+      setBrands(data);
+    } catch (err) {
+      setLoadError(errMsg(err, "Failed to load brands."));
     } finally {
       setLoading(false);
     }
@@ -98,7 +100,7 @@ export default function AdminBrandsPage() {
         {
           name: createForm.name.trim(),
           slug: createForm.slug.trim(),
-          logo: createForm.logo.trim() || null,
+          logo: createForm.logo.trim() || undefined,
         },
         token
       );
@@ -106,8 +108,8 @@ export default function AdminBrandsPage() {
       setShowCreate(false);
       flash("Brand created.");
       await fetchBrands();
-    } catch (err: any) {
-      setCreateError(err.message ?? "Failed to create brand.");
+    } catch (err) {
+      setCreateError(errMsg(err, "Failed to create brand."));
     } finally {
       setCreateLoading(false);
     }
@@ -115,7 +117,7 @@ export default function AdminBrandsPage() {
 
   // ─── Edit ──────────────────────────────────────────────────────────────────
 
-  const startEdit = (brand: BrandItem) => {
+  const startEdit = (brand: Brand) => {
     setEditId(brand.id);
     setEditForm({ name: brand.name, slug: brand.slug, logo: brand.logo ?? "" });
     setEditErrors({});
@@ -149,15 +151,15 @@ export default function AdminBrandsPage() {
         editId,
         {
           name: editForm.name.trim(),
-          logo: editForm.logo.trim() || null,
+          logo: editForm.logo.trim() || undefined,
         },
         token
       );
       setEditId(null);
       flash("Brand updated.");
       await fetchBrands();
-    } catch (err: any) {
-      setEditError(err.message ?? "Failed to update brand.");
+    } catch (err) {
+      setEditError(errMsg(err, "Failed to update brand."));
     } finally {
       setEditLoading(false);
     }
@@ -165,7 +167,7 @@ export default function AdminBrandsPage() {
 
   // ─── Delete ────────────────────────────────────────────────────────────────
 
-  const handleDelete = async (brand: BrandItem) => {
+  const handleDelete = async (brand: Brand) => {
     if (!confirm(`Delete brand "${brand.name}"? This cannot be undone.`)) return;
     const token = getAdminSession()?.id ?? null;
     if (!token) { setDeleteError("Not authenticated."); return; }
@@ -175,8 +177,8 @@ export default function AdminBrandsPage() {
       await brandsApi.delete(brand.id, token);
       flash("Brand deleted.");
       await fetchBrands();
-    } catch (err: any) {
-      setDeleteError(err.message ?? "Failed to delete brand.");
+    } catch (err) {
+      setDeleteError(errMsg(err, "Failed to delete brand."));
     } finally {
       setDeletingId(null);
     }

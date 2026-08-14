@@ -25,7 +25,7 @@ interface Props {
   reviews: Review[];
 }
 
-export default function ProductReviews({ productId, reviews }: Props) {
+export default function ProductReviews({ reviews }: Props) {
   const router = useRouter();
   const [editingId, setEditingId] = useState<string | null>(null);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
@@ -70,8 +70,8 @@ export default function ProductReviews({ productId, reviews }: Props) {
       setEditingId(null);
       setSaved(true);
       router.refresh();
-    } catch (err: any) {
-      setError(err.message ?? "Failed to update review.");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to update review.");
     } finally {
       setSaving(false);
     }

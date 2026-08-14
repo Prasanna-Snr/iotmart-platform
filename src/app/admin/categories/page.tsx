@@ -3,17 +3,17 @@
 import { useState, useEffect, useCallback } from "react";
 import { Plus, Trash2, AlertCircle, CheckCircle, Tag, Edit2, X } from "lucide-react";
 import Input from "@/components/ui/Input";
-import { categoriesApi } from "@/lib/api";
+import { categoriesApi, type Category as ApiCategory } from "@/lib/api";
 import { getAdminSession } from "@/lib/adminAuth";
 import { slugify } from "@/lib/utils";
 
-interface CategoryItem {
-  id: string;
-  name: string;
-  slug: string;
-  description: string;
-  image: string;
-  product_count: number;
+function errMsg(err: unknown, fallback: string): string {
+  if (err instanceof Error) return err.message ?? fallback;
+  if (typeof err === "object" && err !== null && "message" in err) {
+    const message = err.message;
+    if (typeof message === "string") return message;
+  }
+  return fallback;
 }
 
 interface FormState {
@@ -26,7 +26,7 @@ interface FormState {
 const EMPTY_FORM: FormState = { name: "", slug: "", description: "", image: "" };
 
 export default function AdminCategoriesPage() {
-  const [categories, setCategories] = useState<CategoryItem[]>([]);
+  const [categories, setCategories] = useState<ApiCategory[]>([]);
   const [loadError, setLoadError] = useState("");
   const [loading, setLoading] = useState(true);
 
@@ -59,9 +59,9 @@ export default function AdminCategoriesPage() {
     setLoadError("");
     try {
       const data = await categoriesApi.list();
-      setCategories(data as CategoryItem[]);
-    } catch (err: any) {
-      setLoadError(err.message ?? "Failed to load categories.");
+      setCategories(data);
+    } catch (err) {
+      setLoadError(errMsg(err, "Failed to load categories."));
     } finally {
       setLoading(false);
     }
@@ -109,8 +109,8 @@ export default function AdminCategoriesPage() {
       setShowCreate(false);
       flash("Category created.");
       await fetchCategories();
-    } catch (err: any) {
-      setCreateError(err.message ?? "Failed to create category.");
+    } catch (err) {
+      setCreateError(errMsg(err, "Failed to create category."));
     } finally {
       setCreateLoading(false);
     }
@@ -118,7 +118,7 @@ export default function AdminCategoriesPage() {
 
   // ─── Edit ──────────────────────────────────────────────────────────────────
 
-  const startEdit = (cat: CategoryItem) => {
+  const startEdit = (cat: ApiCategory) => {
     setEditId(cat.id);
     setEditForm({
       name: cat.name,
@@ -165,8 +165,8 @@ export default function AdminCategoriesPage() {
       setEditId(null);
       flash("Category updated.");
       await fetchCategories();
-    } catch (err: any) {
-      setEditError(err.message ?? "Failed to update category.");
+    } catch (err) {
+      setEditError(errMsg(err, "Failed to update category."));
     } finally {
       setEditLoading(false);
     }
@@ -174,7 +174,7 @@ export default function AdminCategoriesPage() {
 
   // ─── Delete ────────────────────────────────────────────────────────────────
 
-  const handleDelete = async (cat: CategoryItem) => {
+  const handleDelete = async (cat: ApiCategory) => {
     if (!confirm(`Delete category "${cat.name}"? This cannot be undone.`)) return;
     const token = getAdminSession()?.id ?? null;
     if (!token) { setDeleteError("Not authenticated."); return; }
@@ -184,8 +184,8 @@ export default function AdminCategoriesPage() {
       await categoriesApi.delete(cat.id, token);
       flash("Category deleted.");
       await fetchCategories();
-    } catch (err: any) {
-      setDeleteError(err.message ?? "Failed to delete category.");
+    } catch (err) {
+      setDeleteError(errMsg(err, "Failed to delete category."));
     } finally {
       setDeletingId(null);
     }

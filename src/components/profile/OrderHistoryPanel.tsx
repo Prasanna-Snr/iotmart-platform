@@ -6,37 +6,16 @@ import Link from "next/link";
 import { Package, ChevronDown, ChevronUp, X, Truck, CheckCircle2, Circle, Ban } from "lucide-react";
 import { formatDateShort, formatPrice } from "@/lib/utils";
 import { ORDER_STATUS_COLORS, PAYMENT_STATUS_COLORS } from "@/lib/constants";
-import { ordersApi } from "@/lib/api";
+import { ordersApi, type Order } from "@/lib/api";
 
 const TRACK_STEPS = ["pending", "processing", "shipped", "delivered"] as const;
+type TrackStep = (typeof TRACK_STEPS)[number];
 const TRACK_LABELS: Record<string, string> = {
   pending: "Order placed",
   processing: "Processing",
   shipped: "Shipped",
   delivered: "Delivered",
 };
-
-interface OrderItem {
-  product_name: string;
-  product_image?: string;
-  quantity: number;
-  price: number;
-  subtotal: number;
-}
-
-interface Order {
-  id: string;
-  order_number: string;
-  status: string;
-  payment_status: string;
-  payment_method: string;
-  subtotal: number;
-  shipping_cost: number;
-  total: number;
-  items: OrderItem[];
-  shipping_address: { city?: string; state?: string; addressLine1?: string };
-  created_at: string;
-}
 
 interface Props {
   orders: Order[];
@@ -57,8 +36,8 @@ export default function OrderHistoryPanel({ orders, loading, error, token, onOrd
     try {
       const updated = await ordersApi.cancel(orderId, token);
       onOrderCancelled(updated);
-    } catch (e: any) {
-      setCancelError((prev) => ({ ...prev, [orderId]: e.message ?? "Failed to cancel order." }));
+    } catch (e) {
+      setCancelError((prev) => ({ ...prev, [orderId]: e instanceof Error ? e.message : "Failed to cancel order." }));
     } finally {
       setCancellingId(null);
     }
@@ -165,7 +144,7 @@ export default function OrderHistoryPanel({ orders, loading, error, token, onOrd
                 ) : (
                   <ol className="flex items-center gap-0">
                     {TRACK_STEPS.map((step, idx) => {
-                      const currentIndex = TRACK_STEPS.indexOf(order.status as any);
+                      const currentIndex = TRACK_STEPS.indexOf(order.status as TrackStep);
                       const reached = idx <= currentIndex;
                       const isCurrent = idx === currentIndex;
                       return (

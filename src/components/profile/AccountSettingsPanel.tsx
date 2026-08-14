@@ -14,7 +14,6 @@ interface Props {
 }
 
 export default function AccountSettingsPanel({
-  token,
   initialName,
   initialEmail,
   initialPhone,
@@ -45,8 +44,8 @@ export default function AccountSettingsPanel({
       onNameSaved(name.trim());
       setProfSaved(true);
       setTimeout(() => setProfSaved(false), 2500);
-    } catch (err: any) {
-      setProfError(err.message ?? "Failed to save.");
+    } catch (err) {
+      setProfError(err instanceof Error ? err.message : "Failed to save.");
     } finally {
       setProfSaving(false);
     }
@@ -63,8 +62,8 @@ export default function AccountSettingsPanel({
       setNewPwd(""); setConfirmPwd("");
       setPwdSaved(true);
       setTimeout(() => setPwdSaved(false), 2500);
-    } catch (err: any) {
-      setPwdError(err.message ?? "Failed to update password.");
+    } catch (err) {
+      setPwdError(err instanceof Error ? err.message : "Failed to update password.");
     } finally {
       setPwdSaving(false);
     }

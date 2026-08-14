@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 
 import { useCustomerAuth } from "@/lib/customerAuth";
-import { ordersApi, rewardsApi } from "@/lib/api";
+import { ordersApi, rewardsApi, type Order } from "@/lib/api";
 
 import ProfileSidebar    from "@/components/profile/ProfileSidebar";
 import ProfileWelcome    from "@/components/profile/ProfileWelcome";
@@ -18,13 +18,24 @@ import RewardsPanel      from "@/components/profile/RewardsPanel";
 
 import type { Section } from "@/components/profile/ProfileSidebar";
 
+/** Fields the profile page reads off the locally-cached customer object. */
+interface StoredUser {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
+  phone?: string | null;
+  avatar?: string | null;
+  created_at?: string;
+}
+
 export default function ProfilePage() {
   const router = useRouter();
   const { user, ready, clearAuth, setAuth } = useCustomerAuth();
 
   const [section, setSection] = useState<Section>("dashboard");
 
-  const [orders, setOrders]               = useState<any[]>([]);
+  const [orders, setOrders]               = useState<Order[]>([]);
   const [ordersLoading, setOrdersLoading] = useState(false);
   const [ordersError, setOrdersError]     = useState("");
   const [rewardPoints, setRewardPoints]   = useState<number | null>(null);
@@ -39,7 +50,7 @@ export default function ProfilePage() {
 
   // Hydrate local name
   useEffect(() => {
-    if (user) setLocalName((user as any).name ?? "");
+    if (user) setLocalName(user.name ?? "");
   }, [user]);
 
   // Fetch orders once
@@ -49,7 +60,7 @@ export default function ProfilePage() {
     ordersApi
       .list("")
       .then(setOrders)
-      .catch((e: any) => setOrdersError(e.message ?? "Failed to load orders."))
+      .catch((e) => setOrdersError((e as { message?: string }).message ?? "Failed to load orders."))
       .finally(() => setOrdersLoading(false));
   }, [user]);
 
@@ -69,7 +80,7 @@ export default function ProfilePage() {
 
   const handleNameSaved = (name: string) => {
     setLocalName(name);
-    if (user) setAuth("", { ...(user as any), name });
+    if (user) setAuth("", { ...(user as StoredUser), name });
   };
 
   if (!ready || !user) {
@@ -80,10 +91,10 @@ export default function ProfilePage() {
     );
   }
 
-  const displayName = localName || (user as any).name;
-  const email       = (user as any).email ?? "";
-  const phone       = (user as any).phone ?? "";
-  const createdAt   = (user as any).created_at ?? "";
+  const displayName = localName || user.name;
+  const email       = user.email ?? "";
+  const phone       = (user as StoredUser).phone ?? "";
+  const createdAt   = (user as StoredUser).created_at ?? "";
 
   const initials = displayName
     .split(" ")

@@ -2,14 +2,14 @@
 
 import { useState, useEffect } from "react";
 import { Mail, Phone, ChevronLeft, ChevronRight } from "lucide-react";
-import { usersApi } from "@/lib/api";
+import { usersApi, type User, type Paged } from "@/lib/api";
 import { getAdminSession } from "@/lib/adminAuth";
 import { formatDateShort } from "@/lib/utils";
 
 const PAGE_SIZE = 20;
 
 export default function AdminCustomersPage() {
-  const [users, setUsers]       = useState<any[]>([]);
+  const [users, setUsers]       = useState<User[]>([]);
   const [total, setTotal]       = useState(0);
   const [page, setPage]         = useState(1);
   const [loading, setLoading]   = useState(true);
@@ -30,7 +30,7 @@ export default function AdminCustomersPage() {
       setLoading(true);
       usersApi
         .list(token, { page, page_size: PAGE_SIZE, search: q || undefined })
-        .then((data: any) => {
+        .then((data: User[] | Paged<User>) => {
           if (Array.isArray(data)) {
             setUsers(data);
             setTotal(data.length);
@@ -39,7 +39,7 @@ export default function AdminCustomersPage() {
             setTotal(data?.total ?? 0);
           }
         })
-        .catch((e: any) => setError(e.message ?? "Failed to load customers."))
+        .catch((e) => setError(e.message ?? "Failed to load customers."))
         .finally(() => setLoading(false));
     }, q ? 300 : 0);
     return () => clearTimeout(timer);
@@ -112,7 +112,7 @@ export default function AdminCustomersPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[#F0E9E3]">
-                  {users.map((user: any) => (
+                  {users.map((user: User) => (
                     <tr
                       key={user.id}
                       className="hover:bg-[#F0E9E3]/30 transition-colors"

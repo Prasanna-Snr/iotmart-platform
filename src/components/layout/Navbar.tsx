@@ -10,7 +10,6 @@ import {
   X,
   Cpu,
   User,
-  ChevronDown,
 } from "lucide-react";
 import { useCart } from "@/context/CartContext";
 import { NAV_LINKS } from "@/lib/constants";

@@ -9,6 +9,11 @@ import { isValidEmail } from "@/lib/utils";
 import { authApi } from "@/lib/api";
 import { useCustomerAuth } from "@/lib/customerAuth";
 
+interface AuthResponse {
+  access_token: string;
+  user: { id: string; name: string; email: string; role: string };
+}
+
 export default function LoginPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -35,11 +40,11 @@ export default function LoginPage() {
     setLoading(true);
     setErrors({});
     try {
-      const data: any = await authApi.login({ email: form.email, password: form.password });
+      const data = (await authApi.login({ email: form.email, password: form.password })) as AuthResponse;
       setAuth(data.access_token, data.user);
       router.push(redirectTo);
-    } catch (err: any) {
-      setErrors({ api: err.message ?? "Invalid email or password." });
+    } catch (err) {
+      setErrors({ api: (err as { message?: string }).message ?? "Invalid email or password." });
     } finally {
       setLoading(false);
     }

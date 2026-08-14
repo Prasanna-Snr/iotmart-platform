@@ -6,9 +6,18 @@ import {
 } from "lucide-react";
 import Input from "@/components/ui/Input";
 import Textarea from "@/components/ui/Textarea";
-import { settingsApi, authApi } from "@/lib/api";
+import { settingsApi } from "@/lib/api";
 import { getAdminSession } from "@/lib/adminAuth";
 import { useAdminAuth } from "@/lib/adminAuth";
+
+function errMsg(err: unknown, fallback: string): string {
+  if (err instanceof Error) return err.message ?? fallback;
+  if (typeof err === "object" && err !== null && "message" in err) {
+    const message = err.message;
+    if (typeof message === "string") return message;
+  }
+  return fallback;
+}
 
 type Tab = "store" | "shipping" | "notifications" | "security";
 
@@ -67,8 +76,8 @@ export default function AdminSettingsPage() {
       setSettings(data.settings);
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);
-    } catch (e: any) {
-      setSaveError(e.message ?? "Failed to save settings.");
+    } catch (e) {
+      setSaveError(errMsg(e, "Failed to save settings."));
     } finally {
       setSaving(false);
     }
@@ -94,8 +103,8 @@ export default function AdminSettingsPage() {
       setPwdSaved(true);
       setCurrentPwd(""); setNewPwd(""); setConfirmPwd("");
       setTimeout(() => setPwdSaved(false), 3000);
-    } catch (e: any) {
-      setPwdError(e.message ?? "Failed to update password.");
+    } catch (e) {
+      setPwdError(errMsg(e, "Failed to update password."));
     } finally {
       setPwdSaving(false);
     }

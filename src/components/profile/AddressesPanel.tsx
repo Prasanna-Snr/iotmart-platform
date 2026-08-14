@@ -3,24 +3,10 @@
 import { useState, useEffect, useCallback } from "react";
 import { Plus, Pencil, Trash2, MapPin, Check } from "lucide-react";
 import Input from "@/components/ui/Input";
-import { addressesApi } from "@/lib/api";
+import { addressesApi, type Address } from "@/lib/api";
 
 interface Props {
   token: string;
-}
-
-interface Address {
-  id: string;
-  label: string;
-  full_name: string;
-  phone: string;
-  address_line1: string;
-  address_line2: string;
-  city: string;
-  state: string;
-  zip_code: string;
-  country: string;
-  is_default: boolean;
 }
 
 const emptyForm = {
@@ -87,8 +73,8 @@ export default function AddressesPanel({ token }: Props) {
       }
       setShowForm(false);
       load();
-    } catch (err: any) {
-      setError(err.message ?? "Failed to save address.");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to save address.");
     } finally {
       setSaving(false);
     }
@@ -100,8 +86,8 @@ export default function AddressesPanel({ token }: Props) {
     try {
       await addressesApi.delete(a.id, token);
       load();
-    } catch (err: any) {
-      setError(err.message ?? "Failed to delete address.");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to delete address.");
     }
   };
 

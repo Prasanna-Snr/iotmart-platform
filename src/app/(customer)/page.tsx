@@ -1,12 +1,14 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import Image from "next/image";
-import { Cpu, BookOpen, Package, Users, Truck, ArrowRight, Star, Zap, Shield } from "lucide-react";
+import { BookOpen, Package, Users, Truck, ArrowRight, Shield } from "lucide-react";
 import ProductCard from "@/components/product/ProductCard";
 import TutorialCard from "@/components/tutorial/TutorialCard";
 import HomeNewsletterForm from "@/components/ui/HomeNewsletterForm";
 import { SITE_NAME, SITE_URL } from "@/lib/constants";
 import { jsonLdString, productListJsonLd } from "@/lib/seo";
+import type { Category, ProductListItem, Tutorial, Paged } from "@/lib/api";
+import type { Product as UiProduct } from "@/types";
 
 export const metadata: Metadata = {
   title: `${SITE_NAME} — Buy IoT Hardware, Sensors & Dev Boards Nepal`,
@@ -30,10 +32,10 @@ export default async function HomePage() {
       .then((r) => r.ok ? r.json() : [])
       .catch(() => []),
     fetch(`${apiBase}/api/products?featured=true&page_size=8`, { next: { revalidate: 60 } })
-      .then((r) => r.ok ? r.json().then((d: any) => d.items ?? []) : [])
+      .then((r) => r.ok ? r.json().then((d: Paged<ProductListItem>) => d.items ?? []) : [])
       .catch(() => []),
     fetch(`${apiBase}/api/tutorials?featured=true&published=true&page_size=3`, { next: { revalidate: 60 } })
-      .then((r) => r.ok ? r.json().then((d: any) => d.items ?? []) : [])
+      .then((r) => r.ok ? r.json().then((d: Paged<Tutorial>) => d.items ?? []) : [])
       .catch(() => []),
   ]);
   return (
@@ -65,7 +67,7 @@ export default async function HomePage() {
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{
-            __html: jsonLdString(productListJsonLd(featuredProducts)),
+            __html: jsonLdString(productListJsonLd(featuredProducts as unknown as UiProduct[])),
           }}
         />
       )}
@@ -88,7 +90,7 @@ export default async function HomePage() {
         <div className="container-custom relative py-20 md:py-28">
           <div className="max-w-2xl">
             <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold leading-tight mb-6 text-white drop-shadow-sm">
-              Build IoT Projects with<br /><span className="text-[#F0C060]">Nepal's Best Hardware</span>
+              Build IoT Projects with<br /><span className="text-[#F0C060]">Nepal&apos;s Best Hardware</span>
             </h1>
             <p className="text-lg text-[#899581] leading-relaxed mb-8 max-w-xl">
               Your one-stop shop for sensors, microcontrollers, development boards, and free step-by-step project tutorials.
@@ -139,7 +141,7 @@ export default async function HomePage() {
           </Link>
         </div>
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-          {categories.slice(0, 8).map((cat: any) => (
+          {categories.slice(0, 8).map((cat: Category) => (
             <Link key={cat.id} href={`/products?category=${cat.slug}`}
               className="group relative overflow-hidden rounded-xl bg-[#11100E] aspect-square">
               {cat.image ? (
@@ -178,7 +180,7 @@ export default async function HomePage() {
             </Link>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5">
-            {featuredProducts.map((product: any) => <ProductCard key={product.id} product={product} />)}
+            {featuredProducts.map((product: ProductListItem) => <ProductCard key={product.id} product={product} />)}
           </div>
         </div>
       </section>
@@ -197,7 +199,7 @@ export default async function HomePage() {
           </Link>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-          {featuredTutorials.map((tut: any) => <TutorialCard key={tut.id} tutorial={tut} />)}
+          {featuredTutorials.map((tut: Tutorial) => <TutorialCard key={tut.id} tutorial={tut} />)}
         </div>
       </section>
       )}

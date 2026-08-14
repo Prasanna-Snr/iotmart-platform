@@ -3,9 +3,18 @@
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { Star, Trash2, CheckCircle, XCircle } from "lucide-react";
-import { reviewsApi } from "@/lib/api";
+import { reviewsApi, type ReviewAdmin } from "@/lib/api";
 import { getAdminSession } from "@/lib/adminAuth";
 import { formatDateShort } from "@/lib/utils";
+
+function errMsg(err: unknown, fallback: string): string {
+  if (err instanceof Error) return err.message ?? fallback;
+  if (typeof err === "object" && err !== null && "message" in err) {
+    const message = err.message;
+    if (typeof message === "string") return message;
+  }
+  return fallback;
+}
 
 type Filter = "all" | "approved" | "pending";
 
@@ -24,7 +33,7 @@ function StarRow({ rating }: { rating: number }) {
 }
 
 export default function AdminReviewsPage() {
-  const [reviews, setReviews]   = useState<any[]>([]);
+  const [reviews, setReviews]   = useState<ReviewAdmin[]>([]);
   const [loading, setLoading]   = useState(true);
   const [error, setError]       = useState("");
   const [filter, setFilter]     = useState<Filter>("all");
@@ -63,8 +72,8 @@ export default function AdminReviewsPage() {
     try {
       const updated = await reviewsApi.verify(id, token);
       setReviews((prev) => prev.map((r) => r.id === id ? { ...r, verified: updated.verified } : r));
-    } catch (e: any) {
-      alert(e.message ?? "Failed to update review.");
+    } catch (e) {
+      alert(errMsg(e, "Failed to update review."));
     }
   };
 
@@ -75,8 +84,8 @@ export default function AdminReviewsPage() {
     try {
       await reviewsApi.delete(id, token);
       setReviews((prev) => prev.filter((r) => r.id !== id));
-    } catch (e: any) {
-      alert(e.message ?? "Failed to delete review.");
+    } catch (e) {
+      alert(errMsg(e, "Failed to delete review."));
     }
   };
 

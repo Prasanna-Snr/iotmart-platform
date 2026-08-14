@@ -1,26 +1,19 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Plus, Pencil, Trash2, ToggleLeft, ToggleRight, Ticket } from "lucide-react";
-import { couponsApi } from "@/lib/api";
+import { couponsApi, type Coupon, type CouponInput } from "@/lib/api";
 import { getAdminSession } from "@/lib/adminAuth";
 import Modal from "@/components/ui/Modal";
 import Input from "@/components/ui/Input";
 
-interface CouponItem {
-  id: string;
-  code: string;
-  description: string;
-  percent_off: number | null;
-  fixed_amount: number | null;
-  min_subtotal: number;
-  max_uses: number | null;
-  used_count: number;
-  max_uses_per_user: number | null;
-  active: boolean;
-  starts_at: string | null;
-  expires_at: string | null;
-  created_at: string;
+function errMsg(err: unknown, fallback: string): string {
+  if (err instanceof Error) return err.message ?? fallback;
+  if (typeof err === "object" && err !== null && "message" in err) {
+    const message = err.message;
+    if (typeof message === "string") return message;
+  }
+  return fallback;
 }
 
 const emptyForm = {
@@ -47,24 +40,24 @@ function formatDate(v: string | null | undefined): string {
   return d.toLocaleDateString();
 }
 
-function discountLabel(c: CouponItem): string {
+function discountLabel(c: Coupon): string {
   if (c.percent_off != null) return `${c.percent_off}% off`;
   if (c.fixed_amount != null) return `${formatMoney(c.fixed_amount)} off`;
   return "—";
 }
 
 export default function AdminCouponsPage() {
-  const [coupons, setCoupons] = useState<CouponItem[]>([]);
+  const [coupons, setCoupons] = useState<Coupon[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError]     = useState("");
   const [modalOpen, setModalOpen] = useState(false);
   const [saving, setSaving]   = useState(false);
-  const [editTarget, setEditTarget] = useState<CouponItem | null>(null);
+  const [editTarget, setEditTarget] = useState<Coupon | null>(null);
   const [form, setForm] = useState(emptyForm);
 
-  const token = () => getAdminSession()?.id ?? null;
+  const token = useCallback(() => getAdminSession()?.id ?? null, []);
 
-  const load = () => {
+  const load = useCallback(() => {
     const t = token();
     if (!t) {
       setError("Not authenticated.");
@@ -76,9 +69,9 @@ export default function AdminCouponsPage() {
       .then((data) => setCoupons(data))
       .catch((e) => setError(e.message ?? "Failed to load coupons."))
       .finally(() => setLoading(false));
-  };
+  }, [token]);
 
-  useEffect(() => { load(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, []);
+  useEffect(() => { load(); }, [load]);
 
   const openAdd = () => {
     setEditTarget(null);
@@ -86,7 +79,7 @@ export default function AdminCouponsPage() {
     setModalOpen(true);
   };
 
-  const openEdit = (c: CouponItem) => {
+  const openEdit = (c: Coupon) => {
     setEditTarget(c);
     setForm({
       code: c.code,
@@ -102,8 +95,8 @@ export default function AdminCouponsPage() {
     setModalOpen(true);
   };
 
-  const buildPayload = () => {
-    const p: Record<string, any> = {
+  const buildPayload = (): CouponInput => {
+    const p: CouponInput = {
       code: form.code.trim().toUpperCase(),
       description: form.description,
       min_subtotal: form.min_subtotal ? Number(form.min_subtotal) : 0,
@@ -133,8 +126,8 @@ export default function AdminCouponsPage() {
       }
       setModalOpen(false);
       load();
-    } catch (e: any) {
-      setError(e.message ?? "Failed to save coupon.");
+    } catch (e) {
+      setError(errMsg(e, "Failed to save coupon."));
     } finally {
       setSaving(false);
     }
@@ -148,20 +141,20 @@ export default function AdminCouponsPage() {
     try {
       await couponsApi.delete(id, t);
       load();
-    } catch (e: any) {
-      setError(e.message ?? "Failed to delete coupon.");
+    } catch (e) {
+      setError(errMsg(e, "Failed to delete coupon."));
     }
   };
 
-  const toggleActive = async (c: CouponItem) => {
+  const toggleActive = async (c: Coupon) => {
     const t = token();
     if (!t) return;
     setError("");
     try {
-      await couponsApi.update(c.id, { active: !c.active }, t);
+      await couponsApi.update(c.id, { code: c.code, active: !c.active }, t);
       load();
-    } catch (e: any) {
-      setError(e.message ?? "Failed to update coupon.");
+    } catch (e) {
+      setError(errMsg(e, "Failed to update coupon."));
     }
   };
 

@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
-import { productsApi, categoriesApi, brandsApi } from "@/lib/api";
+import { productsApi, categoriesApi, brandsApi, type ProductListItem } from "@/lib/api";
+import type { Product as UiProduct, Brand as UiBrand } from "@/types";
 
 // ISR via per-fetch `next.revalidate` in api.ts (route-segment `revalidate`
 // was removed in Next.js v16).
@@ -66,7 +67,9 @@ export default async function ProductsPage({ searchParams }: PageProps) {
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{
-            __html: jsonLdString(productListJsonLd(items)),
+            __html: jsonLdString(
+              productListJsonLd(items as unknown as UiProduct[])
+            ),
           }}
         />
       )}
@@ -79,7 +82,11 @@ export default async function ProductsPage({ searchParams }: PageProps) {
 
         <div className="flex flex-col lg:flex-row gap-6">
           <aside className="lg:w-60 flex-shrink-0">
-            <ProductFiltersPanel categories={categories} brands={brands} currentParams={params} />
+            <ProductFiltersPanel
+              categories={categories}
+              brands={brands as unknown as UiBrand[]}
+              currentParams={params}
+            />
           </aside>
 
           <div className="flex-1 min-w-0">
@@ -87,7 +94,7 @@ export default async function ProductsPage({ searchParams }: PageProps) {
               <EmptyState title="No products found" description="Try adjusting your filters or search term." action={{ label: "Clear filters", href: "/products" }} />
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5">
-                {items.map((product: any) => <ProductCard key={product.id} product={product} />)}
+                {items.map((product: ProductListItem) => <ProductCard key={product.id} product={product} />)}
               </div>
             )}
 

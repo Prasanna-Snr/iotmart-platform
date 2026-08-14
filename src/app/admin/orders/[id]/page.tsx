@@ -12,10 +12,19 @@ import {
   MapPin,
   CreditCard,
 } from "lucide-react";
-import { ordersApi } from "@/lib/api";
+import { ordersApi, type Order, type OrderItem } from "@/lib/api";
 import { getAdminSession } from "@/lib/adminAuth";
 import { formatPrice, formatDateShort } from "@/lib/utils";
 import { ORDER_STATUS_COLORS, PAYMENT_STATUS_COLORS } from "@/lib/constants";
+
+function errMsg(err: unknown, fallback: string): string {
+  if (err instanceof Error) return err.message ?? fallback;
+  if (typeof err === "object" && err !== null && "message" in err) {
+    const message = err.message;
+    if (typeof message === "string") return message;
+  }
+  return fallback;
+}
 
 const STATUS_OPTIONS = [
   "pending",
@@ -30,7 +39,7 @@ type OrderStatus = (typeof STATUS_OPTIONS)[number];
 
 export default function AdminOrderDetailPage() {
   const { id } = useParams<{ id: string }>();
-  const [order, setOrder]   = useState<any>(null);
+  const [order, setOrder]   = useState<Order | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError]   = useState("");
   const [status, setStatus] = useState<OrderStatus>("pending");
@@ -61,12 +70,12 @@ export default function AdminOrderDetailPage() {
     setSaving(true);
     setSaveError("");
     try {
-      const updated = await ordersApi.updateStatus(id, status, token);
+      const updated = (await ordersApi.updateStatus(id, status, token)) as Order;
       setOrder(updated);
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);
-    } catch (e: any) {
-      setSaveError(e.message ?? "Failed to update status.");
+    } catch (e) {
+      setSaveError(errMsg(e, "Failed to update status."));
     } finally {
       setSaving(false);
     }
@@ -126,7 +135,7 @@ export default function AdminOrderDetailPage() {
               </h2>
             </div>
             <div className="divide-y divide-[#F0E9E3]">
-              {(order.items ?? []).map((item: any, idx: number) => (
+              {(order.items ?? []).map((item: OrderItem, idx: number) => (
                 <div key={idx} className="flex items-center gap-4 px-5 py-4">
                   <div className="relative w-14 h-14 rounded-lg overflow-hidden bg-[#F0E9E3] flex-shrink-0">
                     {item.product_image ? (

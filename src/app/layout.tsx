@@ -93,7 +93,10 @@ export default function RootLayout({
     <html lang="en" className={inter.variable}>
       <head>
         {/* Preconnect to the FastAPI backend for faster LCP on image-heavy pages */}
-        <link rel="preconnect" href="http://localhost:8000" />
+        <link
+          rel="preconnect"
+          href={process.env.API_INTERNAL_URL ?? "http://localhost:8000"}
+        />
         {/* Favicon variants */}
         <link rel="icon" href="/favicon.ico" sizes="any" />
         <link rel="apple-touch-icon" href="/apple-touch-icon.png" />

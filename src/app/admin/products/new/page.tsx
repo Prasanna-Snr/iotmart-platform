@@ -8,9 +8,25 @@ import Input from "@/components/ui/Input";
 import Textarea from "@/components/ui/Textarea";
 import Select from "@/components/ui/Select";
 import ImagePicker from "@/components/admin/ImagePicker";
-import { productsApi, categoriesApi, brandsApi } from "@/lib/api";
+import {
+  productsApi,
+  categoriesApi,
+  brandsApi,
+  type Category,
+  type Brand,
+  type ProductCreateInput,
+} from "@/lib/api";
 import { getAdminSession } from "@/lib/adminAuth";
 import { slugify } from "@/lib/utils";
+
+function errMsg(err: unknown, fallback: string): string {
+  if (err instanceof Error) return err.message ?? fallback;
+  if (typeof err === "object" && err !== null && "message" in err) {
+    const message = err.message;
+    if (typeof message === "string") return message;
+  }
+  return fallback;
+}
 
 interface Spec { label: string; value: string }
 
@@ -51,13 +67,13 @@ export default function AdminAddProductPage() {
       const catMap: Record<string, string> = {};
       const brandMapLocal: Record<string, string> = {};
       setCategories(
-        (cats as any[]).map((c) => {
+        cats.map((c: Category) => {
           catMap[c.slug] = c.id;
           return { value: c.slug, label: c.name };
         })
       );
       setBrands(
-        (brs as any[]).map((b) => {
+        brs.map((b: Brand) => {
           brandMapLocal[b.slug] = b.id;
           return { value: b.slug, label: b.name };
         })
@@ -102,7 +118,7 @@ export default function AdminAddProductPage() {
     setApiError("");
 
     try {
-      const payload = {
+      const payload: ProductCreateInput = {
         name: form.name.trim(),
         slug: form.slug.trim() || slugify(form.name),
         sku: form.sku.trim(),
@@ -132,8 +148,8 @@ export default function AdminAddProductPage() {
       setTimeout(() => {
         router.push("/admin/products");
       }, 1200);
-    } catch (err: any) {
-      setApiError(err.message ?? "Failed to create product.");
+    } catch (err) {
+      setApiError(errMsg(err, "Failed to create product."));
     } finally {
       setLoading(false);
     }

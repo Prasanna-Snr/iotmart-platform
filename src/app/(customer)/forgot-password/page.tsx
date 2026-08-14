@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Eye, EyeOff, Cpu, Mail, ShieldCheck, ArrowLeft, KeyRound, CheckCircle } from "lucide-react";
+import { Eye, EyeOff, Cpu, Mail, ArrowLeft, KeyRound, CheckCircle } from "lucide-react";
 import Input from "@/components/ui/Input";
 import { isValidEmail } from "@/lib/utils";
 import { authApi } from "@/lib/api";
@@ -44,8 +44,8 @@ export default function ForgotPasswordPage() {
       if (res.dev_otp) setOtp(res.dev_otp);
       setStep("reset");
       startResendCooldown();
-    } catch (err: any) {
-      setError(err.message ?? "Failed to send reset code. Please try again.");
+    } catch (err) {
+      setError((err as { message?: string }).message ?? "Failed to send reset code. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -70,8 +70,8 @@ export default function ForgotPasswordPage() {
         new_password: password,
       });
       setDone(true);
-    } catch (err: any) {
-      setError(err.message ?? "Failed to reset password. Please try again.");
+    } catch (err) {
+      setError((err as { message?: string }).message ?? "Failed to reset password. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -86,8 +86,8 @@ export default function ForgotPasswordPage() {
       if (res.dev_otp) setOtp(res.dev_otp);
       setOtp("");
       startResendCooldown();
-    } catch (err: any) {
-      setError(err.message ?? "Failed to resend code.");
+    } catch (err) {
+      setError((err as { message?: string }).message ?? "Failed to resend code.");
     } finally {
       setLoading(false);
     }

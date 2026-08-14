@@ -4,17 +4,38 @@ import { Clock, Eye, ChevronRight } from "lucide-react";
 import { DIFFICULTY_COLORS } from "@/lib/constants";
 import { formatNumber } from "@/lib/utils";
 import Badge from "@/components/ui/Badge";
+import type { Tutorial as ApiTutorial } from "@/lib/api";
+import type { Tutorial as UiTutorial } from "@/types";
+
+/** Shared minimal shape of the fields TutorialCard reads. API data arrives
+ *  snake_case, static data uses camelCase — both are accepted. */
+interface TutorialCardSource {
+  slug: string;
+  title: string;
+  difficulty?: string;
+  views?: number;
+  cover_image?: string;
+  coverImage?: string;
+  estimated_time?: string;
+  estimatedTime?: string;
+  short_description?: string;
+  shortDescription?: string;
+  category?: { name?: string } | null;
+}
+
+type TutorialCardInput = ApiTutorial | UiTutorial;
 
 interface TutorialCardProps {
-  tutorial: any;
+  tutorial: TutorialCardInput;
   compact?: boolean;
 }
 
 export default function TutorialCard({
-  tutorial,
+  tutorial: raw,
   compact = false,
 }: TutorialCardProps) {
   // Support both API snake_case and legacy camelCase shapes
+  const tutorial: TutorialCardSource = raw;
   const coverImage      = tutorial.cover_image      ?? tutorial.coverImage      ?? "";
   const estimatedTime   = tutorial.estimated_time   ?? tutorial.estimatedTime   ?? "";
   const shortDescription= tutorial.short_description?? tutorial.shortDescription?? "";
@@ -42,7 +63,7 @@ export default function TutorialCard({
             </div>
           )}
           <div className="absolute top-2 left-2">
-            <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${DIFFICULTY_COLORS[tutorial.difficulty] ?? "bg-gray-100 text-gray-600"}`}>
+            <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${DIFFICULTY_COLORS[tutorial.difficulty ?? ""] ?? "bg-gray-100 text-gray-600"}`}>
               {tutorial.difficulty}
             </span>
           </div>

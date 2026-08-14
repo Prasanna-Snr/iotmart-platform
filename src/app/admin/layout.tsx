@@ -31,7 +31,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   }, [ready, user]);
 
   // Called by AdminLoginModal on successful login
-  const handleLogin = useCallback((accessToken: string, adminUser: any) => {
+  const handleLogin = useCallback((accessToken: string, adminUser: { id: string; name: string; email: string; role: string }) => {
     setAuth(accessToken, adminUser);
     // setAuth updates token state → this component re-renders → modal unmounts
     // → admin panel shows. No manual reload needed.

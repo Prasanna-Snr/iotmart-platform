@@ -22,8 +22,8 @@ export default function DeleteProductButton({ id, name }: Props) {
     try {
       await productsApi.delete(id, "");
       router.refresh();
-    } catch (err: any) {
-      alert(err.message ?? "Failed to delete product.");
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Failed to delete product.");
     } finally {
       setDeleting(false);
     }

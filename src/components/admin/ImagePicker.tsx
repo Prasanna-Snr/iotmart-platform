@@ -1,8 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import Image from "next/image";
-import { Upload, Link as LinkIcon, X, GripVertical, ImageIcon } from "lucide-react";
+import { Upload, Link as LinkIcon, X, ImageIcon } from "lucide-react";
 import { uploadApi } from "@/lib/api";
 import { getAdminSession } from "@/lib/adminAuth";
 
@@ -35,8 +34,8 @@ export default function ImagePicker({ images, onChange }: ImagePickerProps) {
         files.map((file) => uploadApi.upload(file).then((r) => r.url))
       );
       onChange([...images, ...urls]);
-    } catch (err: any) {
-      setUploadError(err.message ?? "Upload failed.");
+    } catch (err) {
+      setUploadError(err instanceof Error ? err.message : "Upload failed.");
     } finally {
       setUploading(false);
       // Reset input so the same file can be re-selected if needed

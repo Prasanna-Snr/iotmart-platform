@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { ordersApi } from "@/lib/api";
+import { ordersApi, type Order } from "@/lib/api";
 import { getAdminSession } from "@/lib/adminAuth";
 import { formatPrice, formatDateShort } from "@/lib/utils";
 import { ORDER_STATUS_COLORS, PAYMENT_STATUS_COLORS } from "@/lib/constants";
@@ -18,7 +18,7 @@ const STATUS_TABS = [
 ];
 
 export default function AdminOrdersPage() {
-  const [allOrders, setAllOrders] = useState<any[]>([]);
+  const [allOrders, setAllOrders] = useState<Order[]>([]);
   const [loading, setLoading]     = useState(true);
   const [error, setError]         = useState("");
   const [statusFilter, setStatusFilter] = useState("");
@@ -124,7 +124,7 @@ export default function AdminOrdersPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#F0E9E3]">
-                {filtered.map((o: any) => (
+                {filtered.map((o: Order) => (
                   <tr key={o.id} className="hover:bg-[#F0E9E3]/40 transition-colors">
                     <td className="px-4 py-3 font-mono text-sm font-medium text-[#5D1C34]">
                       {o.order_number}

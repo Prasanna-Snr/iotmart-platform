@@ -13,8 +13,31 @@ import {
   BarChart2,
   Wifi,
 } from "lucide-react";
-import { analyticsApi } from "@/lib/api";
+import {
+  analyticsApi,
+  type AnalyticsSummary,
+  type TopPage,
+  type DeviceBreakdown,
+  type BrowserBreakdown,
+  type CountryBreakdown,
+  type DailyTrend,
+} from "@/lib/api";
 import { getAdminSession } from "@/lib/adminAuth";
+
+// ─── Rollup types (from /api/analytics/admin/rollup) ──────────────────────────
+
+interface RollupRow {
+  day: string;
+  views: number;
+  visitors: number;
+  sessions: number;
+  avg_duration_ms: number | null;
+}
+
+interface RollupResult {
+  days: number;
+  pruned: number;
+}
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
@@ -89,7 +112,7 @@ const DEFAULT_SUMMARY = {
 
 // Admin cookie auth is automatic via the httpOnly access_token cookie — no
 // token header is needed for the rollup endpoints.
-async function fetchRollupRows(): Promise<any[]> {
+async function fetchRollupRows(): Promise<RollupRow[]> {
   try {
     const res = await fetch("/api/analytics/admin/rollup", { headers: {} });
     if (!res.ok) return [];
@@ -105,13 +128,13 @@ export default function AdminAnalyticsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError]     = useState("");
 
-  const [summary, setSummary]     = useState(DEFAULT_SUMMARY);
-  const [topPages, setTopPages]   = useState<any[]>([]);
-  const [devices, setDevices]     = useState<any[]>([]);
-  const [browsers, setBrowsers]   = useState<any[]>([]);
-  const [countries, setCountries] = useState<any[]>([]);
-  const [trend, setTrend]         = useState<any[]>([]);
-  const [rollup, setRollup]       = useState<any[]>([]);
+  const [summary, setSummary]     = useState<AnalyticsSummary>(DEFAULT_SUMMARY);
+  const [topPages, setTopPages]   = useState<TopPage[]>([]);
+  const [devices, setDevices]     = useState<DeviceBreakdown[]>([]);
+  const [browsers, setBrowsers]   = useState<BrowserBreakdown[]>([]);
+  const [countries, setCountries] = useState<CountryBreakdown[]>([]);
+  const [trend, setTrend]         = useState<DailyTrend[]>([]);
+  const [rollup, setRollup]       = useState<RollupRow[]>([]);
   const [runningRollup, setRunningRollup] = useState(false);
   const [rollupStatus, setRollupStatus]   = useState("");
 
@@ -155,7 +178,7 @@ export default function AdminAnalyticsPage() {
         headers: {},
       });
       if (!res.ok) throw new Error("rollup failed");
-      const data = await res.json();
+      const data: RollupResult = await res.json();
       setRollupStatus(`Rolled up ${data.days} day(s); pruned ${data.pruned} old view(s).`);
       setRollup(await fetchRollupRows());
     } catch {
@@ -171,11 +194,11 @@ export default function AdminAnalyticsPage() {
     return Monitor;
   };
 
-  const maxPageViews = Math.max(1, ...topPages.map((p: any) => p.views));
-  const maxDevice    = Math.max(1, ...devices.map((d: any) => d.count));
-  const maxBrowser   = Math.max(1, ...browsers.map((b: any) => b.count));
-  const maxCountry   = Math.max(1, ...countries.map((c: any) => c.count));
-  const maxTrend     = Math.max(1, ...trend.map((t: any) => t.unique_visitors));
+  const maxPageViews = Math.max(1, ...topPages.map((p) => p.views));
+  const maxDevice    = Math.max(1, ...devices.map((d) => d.count));
+  const maxBrowser   = Math.max(1, ...browsers.map((b) => b.count));
+  const maxCountry   = Math.max(1, ...countries.map((c) => c.count));
+  const maxTrend     = Math.max(1, ...trend.map((t) => t.unique_visitors));
 
   // ── Loading skeleton ───────────────────────────────────────────────────────
   if (loading) {
@@ -268,7 +291,7 @@ export default function AdminAnalyticsPage() {
             <p className="text-sm text-[#899581] text-center py-8">No data yet</p>
           ) : (
             <div className="flex items-end gap-1 h-36">
-              {trend.map((d: any) => (
+              {trend.map((d) => (
                 <div
                   key={d.day}
                   className="flex-1 flex flex-col items-center gap-1 group relative"
@@ -299,7 +322,7 @@ export default function AdminAnalyticsPage() {
             <p className="text-sm text-[#899581] text-center py-8">No data yet</p>
           ) : (
             <div className="space-y-3">
-              {topPages.map((p: any) => (
+              {topPages.map((p) => (
                 <BarRow key={p.path} label={p.path} value={p.views} max={maxPageViews} />
               ))}
             </div>
@@ -317,7 +340,7 @@ export default function AdminAnalyticsPage() {
             <p className="text-sm text-[#899581] text-center py-6">No data yet</p>
           ) : (
             <div className="space-y-3">
-              {devices.map((d: any) => {
+              {devices.map((d) => {
                 const DevIcon = deviceIcon(d.device_type);
                 return (
                   <div key={d.device_type}>
@@ -350,7 +373,7 @@ export default function AdminAnalyticsPage() {
             <p className="text-sm text-[#899581] text-center py-6">No data yet</p>
           ) : (
             <div className="space-y-3">
-              {browsers.map((b: any) => (
+              {browsers.map((b) => (
                 <BarRow
                   key={b.browser}
                   label={b.browser}
@@ -372,7 +395,7 @@ export default function AdminAnalyticsPage() {
             <p className="text-sm text-[#899581] text-center py-6">No country data (no GeoIP configured)</p>
           ) : (
             <div className="space-y-3">
-              {countries.map((c: any) => (
+              {countries.map((c) => (
                 <BarRow
                   key={c.country}
                   label={c.country}
@@ -418,7 +441,7 @@ export default function AdminAnalyticsPage() {
                 </tr>
               </thead>
               <tbody>
-                {rollup.map((r: any) => (
+                {rollup.map((r) => (
                   <tr key={r.day} className="border-b border-[#F0E9E3]/60 last:border-0">
                     <td className="py-2 pr-4 text-[#11100E] font-medium">{r.day}</td>
                     <td className="py-2 pr-4 text-[#11100E]">{r.views.toLocaleString()}</td>

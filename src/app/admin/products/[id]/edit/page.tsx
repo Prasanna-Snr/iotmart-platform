@@ -1,21 +1,36 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter, useParams } from "next/navigation";
+import { useParams } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, CheckCircle, Trash2, AlertCircle, Plus } from "lucide-react";
 import Input from "@/components/ui/Input";
 import Textarea from "@/components/ui/Textarea";
 import Select from "@/components/ui/Select";
 import ImagePicker from "@/components/admin/ImagePicker";
-import { productsApi, categoriesApi, brandsApi } from "@/lib/api";
+import {
+  productsApi,
+  categoriesApi,
+  brandsApi,
+  type Category,
+  type Brand,
+  type Product,
+  type ProductCreateInput,
+} from "@/lib/api";
 import { getAdminSession } from "@/lib/adminAuth";
-import { slugify } from "@/lib/utils";
 
 interface Spec { label: string; value: string }
 
+function errMsg(err: unknown, fallback: string): string {
+  if (err instanceof Error) return err.message ?? fallback;
+  if (typeof err === "object" && err !== null && "message" in err) {
+    const message = err.message;
+    if (typeof message === "string") return message;
+  }
+  return fallback;
+}
+
 export default function AdminEditProductPage() {
-  const router = useRouter();
   const params = useParams();
   const productId = params.id as string;
 
@@ -53,22 +68,20 @@ export default function AdminEditProductPage() {
 
   // Fetch categories, brands, and product data
   useEffect(() => {
-    const token = getAdminSession()?.id ?? null;
-
     Promise.all([
       categoriesApi.list(),
       brandsApi.list(),
       productsApi.getById(productId),
     ])
-      .then(([cats, brs, product]: [any[], any[], any]) => {
+      .then(([cats, brs, product]: [Category[], Brand[], Product]) => {
         const catMap: Record<string, string> = {};
         const brandMapLocal: Record<string, string> = {};
 
-        const catOptions = (cats as any[]).map((c) => {
+        const catOptions = cats.map((c) => {
           catMap[c.slug] = c.id;
           return { value: c.slug, label: c.name };
         });
-        const brandOptions = (brs as any[]).map((b) => {
+        const brandOptions = brs.map((b) => {
           brandMapLocal[b.slug] = b.id;
           return { value: b.slug, label: b.name };
         });
@@ -99,9 +112,9 @@ export default function AdminEditProductPage() {
 
         if (Array.isArray(product.specs) && product.specs.length > 0) {
           setSpecs(
-            product.specs.map((s: any) => ({
-              label: s.label ?? "",
-              value: s.value ?? "",
+            product.specs.map((s) => ({
+              label: typeof s.label === "string" ? s.label : "",
+              value: typeof s.value === "string" ? s.value : "",
             }))
           );
         }
@@ -131,7 +144,7 @@ export default function AdminEditProductPage() {
     setApiError("");
 
     try {
-      const payload: Record<string, any> = {
+      const payload: Partial<ProductCreateInput> = {
         name: form.name.trim(),
         short_description: form.shortDescription.trim(),
         description: form.description.trim(),
@@ -162,8 +175,8 @@ export default function AdminEditProductPage() {
       await productsApi.update(productId, payload, token);
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);
-    } catch (err: any) {
-      setApiError(err.message ?? "Failed to update product.");
+    } catch (err) {
+      setApiError(errMsg(err, "Failed to update product."));
     } finally {
       setLoading(false);
     }
@@ -183,8 +196,8 @@ export default function AdminEditProductPage() {
     try {
       await productsApi.delete(productId, token);
       setDeleted(true);
-    } catch (err: any) {
-      setApiError(err.message ?? "Failed to delete product.");
+    } catch (err) {
+      setApiError(errMsg(err, "Failed to delete product."));
     } finally {
       setLoading(false);
     }

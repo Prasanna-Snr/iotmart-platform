@@ -54,8 +54,8 @@ export default function WriteReviewForm({ productId, onSubmitted }: Props) {
       setTitle("");
       router.refresh();
       onSubmitted?.();
-    } catch (err: any) {
-      setError(err.message ?? "Failed to submit review. Please try again.");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to submit review. Please try again.");
     } finally {
       setLoading(false);
     }

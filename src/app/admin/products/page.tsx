@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Plus, Pencil } from "lucide-react";
-import { productsApi, categoriesApi } from "@/lib/api";
+import { productsApi, categoriesApi, type Category, type ProductListItem } from "@/lib/api";
 import { formatPrice } from "@/lib/utils";
 import DeleteProductButton from "@/components/admin/DeleteProductButton";
 
@@ -45,7 +45,7 @@ export default async function AdminProductsPage({ searchParams }: PageProps) {
         <select name="category" defaultValue={params.category ?? ""}
           className="border border-[#CDBBAD] rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#5D1C34]/30">
           <option value="">All Categories</option>
-          {categories.map((c: any) => <option key={c.id} value={c.slug}>{c.name}</option>)}
+          {categories.map((c: Category) => <option key={c.id} value={c.slug}>{c.name}</option>)}
         </select>
         <button type="submit" className="bg-[#5D1C34] text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-[#4a1628]">
           Filter
@@ -68,7 +68,7 @@ export default async function AdminProductsPage({ searchParams }: PageProps) {
               </tr>
             </thead>
             <tbody className="divide-y divide-[#F0E9E3]">
-              {products.map((p: any) => (
+              {products.map((p: ProductListItem) => (
                 <tr key={p.id} className="hover:bg-[#F0E9E3]/40 transition-colors">
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-3">

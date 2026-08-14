@@ -3,7 +3,8 @@ import { notFound } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
 import { Clock, Eye, User, CheckCircle } from "lucide-react";
-import { tutorialsApi, productsApi } from "@/lib/api";
+import { tutorialsApi, productsApi, type Tutorial as ApiTutorial, type Product } from "@/lib/api";
+import type { Tutorial as UiTutorial } from "@/types";
 
 // ISR via per-fetch `next.revalidate` in api.ts (route-segment `revalidate`
 // was removed in Next.js v16).
@@ -59,7 +60,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
       createdAt:        raw.created_at ?? new Date().toISOString(),
       updatedAt:        raw.updated_at ?? new Date().toISOString(),
     };
-    return generateTutorialMetadata(tutorial as any);
+    return generateTutorialMetadata(tutorial as unknown as UiTutorial);
   } catch {
     return {};
   }
@@ -68,7 +69,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 export default async function TutorialDetailPage({ params }: PageProps) {
   const { slug } = await params;
 
-  let tutorial: any;
+  let tutorial: ApiTutorial;
   try {
     tutorial = await tutorialsApi.get(slug);
   } catch {
@@ -80,7 +81,7 @@ export default async function TutorialDetailPage({ params }: PageProps) {
     (tutorial.related_tutorial_ids?.length
       ? tutorialsApi.list({ page_size: 3 }).then((r) =>
           r.items.filter(
-            (t: any) =>
+            (t: ApiTutorial) =>
               tutorial.related_tutorial_ids.includes(t.id) && t.id !== tutorial.id
           ).slice(0, 3)
         )
@@ -92,13 +93,31 @@ export default async function TutorialDetailPage({ params }: PageProps) {
           tutorial.related_product_ids.slice(0, 3).map((pid: string) =>
             productsApi.getById(pid).catch(() => null)
           )
-        ).then((items) => items.filter(Boolean))
+        ).then((items) => items.filter((p): p is Product => p !== null))
       : Promise.resolve([])
     ).catch(() => []),
   ]);
 
-  const steps: any[]               = tutorial.steps ?? [];
-  const wiringInstructions: any[]  = tutorial.wiring_instructions ?? [];
+  interface RawStep {
+    step_number?: number;
+    stepNumber?: number;
+    title?: string;
+    content?: string;
+    image?: string;
+    code?: string;
+    language?: string;
+  }
+
+  interface RawWiringInstruction {
+    component?: string;
+    pin?: string;
+    microcontroller_pin?: string;
+    microcontrollerPin?: string;
+    description?: string;
+  }
+
+  const steps: RawStep[]                 = (tutorial.steps ?? []) as RawStep[];
+  const wiringInstructions: RawWiringInstruction[] = (tutorial.wiring_instructions ?? []) as RawWiringInstruction[];
   const prerequisites: string[]    = tutorial.prerequisites ?? [];
   const learningOutcomes: string[] = tutorial.learning_outcomes ?? [];
   const components: string[]       = tutorial.components ?? [];
@@ -120,7 +139,7 @@ export default async function TutorialDetailPage({ params }: PageProps) {
     wiringInstructions: [],
     sourceCode:       tutorial.source_code ?? "",
     codeLanguage:     tutorial.code_language ?? "cpp",
-    steps:            steps.map((s: any, i: number) => ({
+    steps:            steps.map((s: RawStep, i: number) => ({
       stepNumber: s.step_number ?? s.stepNumber ?? i + 1,
       title:      s.title,
       content:    s.content,
@@ -142,8 +161,8 @@ export default async function TutorialDetailPage({ params }: PageProps) {
     updatedAt:        tutorial.updated_at ?? new Date().toISOString(),
   };
 
-  const articleSchema = tutorialArticleJsonLd(tutorialForSchema as any);
-  const howToSchema   = tutorialHowToJsonLd(tutorialForSchema as any);
+  const articleSchema = tutorialArticleJsonLd(tutorialForSchema as unknown as UiTutorial);
+  const howToSchema   = tutorialHowToJsonLd(tutorialForSchema as unknown as UiTutorial);
   const crumbSchema   = breadcrumbJsonLd([
     { label: "Tutorials", href: "/tutorials" },
     {
@@ -277,7 +296,7 @@ export default async function TutorialDetailPage({ params }: PageProps) {
                       </tr>
                     </thead>
                     <tbody>
-                      {wiringInstructions.map((w: any, i: number) => (
+                      {wiringInstructions.map((w: RawWiringInstruction, i: number) => (
                         <tr key={i} className={i % 2 === 0 ? "bg-white" : "bg-[#F0E9E3]/40"}>
                           <td className="px-4 py-2.5 font-medium text-[#11100E]">{w.component}</td>
                           <td className="px-4 py-2.5 font-mono text-[#5D1C34] text-xs">{w.pin}</td>
@@ -300,7 +319,7 @@ export default async function TutorialDetailPage({ params }: PageProps) {
               <section>
                 <h2 className="text-xl font-bold text-[#11100E] mb-4">Step-by-Step Guide</h2>
                 <div className="space-y-6">
-                  {steps.map((step: any, i: number) => (
+                  {steps.map((step: RawStep, i: number) => (
                     <div key={i} className="flex gap-4">
                       <div className="flex-shrink-0">
                         <div className="w-8 h-8 rounded-full bg-[#5D1C34] text-white flex items-center justify-center text-sm font-bold">
@@ -380,7 +399,7 @@ export default async function TutorialDetailPage({ params }: PageProps) {
               <div className="bg-white rounded-xl border border-[#CDBBAD]/50 p-4">
                 <h3 className="font-semibold text-[#11100E] mb-3">Table of Contents</h3>
                 <ol className="space-y-1.5">
-                  {steps.map((step: any, i: number) => (
+                  {steps.map((step: RawStep, i: number) => (
                     <li key={i} className="flex items-center gap-2 text-sm text-[#899581]">
                       <span className="text-xs font-bold text-[#5D1C34] w-4">
                         {step.step_number ?? step.stepNumber ?? i + 1}.
@@ -396,7 +415,7 @@ export default async function TutorialDetailPage({ params }: PageProps) {
               <div>
                 <h3 className="font-semibold text-[#11100E] mb-3">Shop Components</h3>
                 <div className="space-y-3">
-                  {relatedProductsData.map((product: any) => (
+                  {relatedProductsData.map((product: Product) => (
                     <Link
                       key={product.id}
                       href={`/products/${product.slug}`}
@@ -434,7 +453,7 @@ export default async function TutorialDetailPage({ params }: PageProps) {
           <section className="mt-14">
             <h2 className="text-xl font-bold text-[#11100E] mb-5">Related Tutorials</h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-              {relatedTutorialsData.map((tut: any) => (
+              {relatedTutorialsData.map((tut: ApiTutorial) => (
                 <TutorialCard key={tut.id} tutorial={tut} />
               ))}
             </div>

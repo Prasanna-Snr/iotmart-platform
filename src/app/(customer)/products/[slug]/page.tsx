@@ -2,7 +2,8 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { Tag } from "lucide-react";
-import { productsApi } from "@/lib/api";
+import { productsApi, type ProductListItem, type Review } from "@/lib/api";
+import type { Product as UiProduct } from "@/types";
 import ProductGallery from "@/components/product/ProductGallery";
 import AddToCartSection from "@/components/product/AddToCartSection";
 import ProductCard from "@/components/product/ProductCard";
@@ -23,23 +24,23 @@ interface PageProps {
   params: Promise<{ slug: string }>;
 }
 
-interface RawReview {
-  id: string;
-  user_id: string;
-  user_name: string;
-  user_avatar?: string | null;
-  rating: number;
-  title: string;
-  body: string;
-  created_at: string;
-  verified: boolean;
+interface ProductSpecRow {
+  label: string;
+  value: string;
+}
+
+/** Source shape accepted by the mapper: a full detail response, or a list item
+ *  (which omits `description` and `reviews` — read defensively below). */
+interface ProductMapSource extends ProductListItem {
+  description?: string;
+  reviews?: Review[];
 }
 
 /** Map API snake_case product to the camelCase Product type used by components */
-function mapProduct(p: any) {
+function mapProduct(p: ProductMapSource) {
   // Only approved (verified) reviews are shown on the storefront. Rating and
   // count are derived from that same set so they match what's displayed.
-  const approved = ((p.reviews ?? []) as RawReview[]).filter((r) => r.verified);
+  const approved = (p.reviews ?? []).filter((r) => r.verified);
   return {
     id:               p.id,
     name:             p.name,
@@ -88,7 +89,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   try {
     const raw = await productsApi.get(slug);
     const product = mapProduct(raw);
-    return generateProductMetadata(product as any);
+    return generateProductMetadata(product as unknown as UiProduct);
   } catch {
     return {};
   }
@@ -116,13 +117,13 @@ export default async function ProductDetailPage({ params }: PageProps) {
     try {
       const related = await productsApi.list({ page_size: 4 });
       relatedProducts = related.items
-        .filter((p: any) => p.id !== product.id)
+        .filter((p: ProductListItem) => p.id !== product.id)
         .slice(0, 4)
         .map(mapProduct);
     } catch { /* non-fatal */ }
   }
 
-  const jsonLd = productJsonLd(product as any);
+  const jsonLd = productJsonLd(product as unknown as UiProduct);
   const crumbJsonLd = breadcrumbJsonLd([
     { label: "Products", href: "/products" },
     { label: product.category.name, href: `/products?category=${product.category.slug}` },
@@ -199,7 +200,7 @@ export default async function ProductDetailPage({ params }: PageProps) {
 
             <p className="text-sm text-[#899581] leading-relaxed mb-6">{product.shortDescription}</p>
 
-            <AddToCartSection product={product as any} />
+            <AddToCartSection product={product as unknown as UiProduct} />
 
             {/* Tags */}
             {product.tags.length > 0 && (
@@ -230,7 +231,7 @@ export default async function ProductDetailPage({ params }: PageProps) {
                 <div className="bg-white rounded-xl border border-[#CDBBAD]/50 overflow-hidden">
                   <table className="w-full text-sm">
                     <tbody>
-                      {product.specs.map((spec: any, idx: number) => (
+                      {(product.specs as unknown as ProductSpecRow[]).map((spec, idx: number) => (
                         <tr key={idx} className={idx % 2 === 0 ? "bg-[#F0E9E3]/40" : "bg-white"}>
                           <td className="px-4 py-3 font-medium text-[#11100E] w-1/3">{spec.label}</td>
                           <td className="px-4 py-3 text-[#899581]">{spec.value}</td>
@@ -261,7 +262,7 @@ export default async function ProductDetailPage({ params }: PageProps) {
           <section>
             <h2 className="text-xl font-bold text-[#11100E] mb-5">Related Products</h2>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              {relatedProducts.map((p) => <ProductCard key={p.id} product={p as any} compact />)}
+              {relatedProducts.map((p) => <ProductCard key={p.id} product={p as unknown as UiProduct} compact />)}
             </div>
           </section>
         )}

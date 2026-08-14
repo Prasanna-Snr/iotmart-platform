@@ -2,11 +2,20 @@
 
 import { useState, useEffect } from "react";
 import { Plus, Pencil, Trash2 } from "lucide-react";
-import { tutorialsApi } from "@/lib/api";
+import { tutorialsApi, type TutorialCategory } from "@/lib/api";
 import { getAdminSession } from "@/lib/adminAuth";
 import { slugify } from "@/lib/utils";
 import Input from "@/components/ui/Input";
 import Modal from "@/components/ui/Modal";
+
+function errMsg(err: unknown, fallback: string): string {
+  if (err instanceof Error) return err.message ?? fallback;
+  if (typeof err === "object" && err !== null && "message" in err) {
+    const message = err.message;
+    if (typeof message === "string") return message;
+  }
+  return fallback;
+}
 
 interface CategoryForm {
   name: string;
@@ -18,11 +27,11 @@ interface CategoryForm {
 const emptyForm: CategoryForm = { name: "", slug: "", description: "", icon: "" };
 
 export default function AdminTutorialCategoriesPage() {
-  const [cats, setCats]           = useState<any[]>([]);
+  const [cats, setCats]           = useState<TutorialCategory[]>([]);
   const [loading, setLoading]     = useState(true);
   const [error, setError]         = useState("");
   const [modalOpen, setModalOpen] = useState(false);
-  const [editTarget, setEditTarget] = useState<any | null>(null);
+  const [editTarget, setEditTarget] = useState<TutorialCategory | null>(null);
   const [form, setForm]           = useState<CategoryForm>(emptyForm);
   const [saving, setSaving]       = useState(false);
   const [saveError, setSaveError] = useState("");
@@ -45,7 +54,7 @@ export default function AdminTutorialCategoriesPage() {
     setModalOpen(true);
   };
 
-  const openEdit = (cat: any) => {
+  const openEdit = (cat: TutorialCategory) => {
     setEditTarget(cat);
     setForm({ name: cat.name, slug: cat.slug, description: cat.description, icon: cat.icon ?? "" });
     setSaveError("");
@@ -78,8 +87,8 @@ export default function AdminTutorialCategoriesPage() {
       }
       setModalOpen(false);
       loadCategories();
-    } catch (err: any) {
-      setSaveError(err.message ?? "Failed to save category.");
+    } catch (err) {
+      setSaveError(errMsg(err, "Failed to save category."));
     } finally {
       setSaving(false);
     }
@@ -92,8 +101,8 @@ export default function AdminTutorialCategoriesPage() {
     try {
       await tutorialsApi.deleteCategory(id, token);
       setCats((prev) => prev.filter((c) => c.id !== id));
-    } catch (err: any) {
-      alert(err.message ?? "Failed to delete category.");
+    } catch (err) {
+      alert(errMsg(err, "Failed to delete category."));
     }
   };
 
