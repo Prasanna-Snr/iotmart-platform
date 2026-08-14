@@ -19,7 +19,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 import pytest_asyncio
 from fastapi.testclient import TestClient
-from jose import jwt
+import jwt
 
 # ─── App bootstrap ────────────────────────────────────────────────────────────
 # We patch out the real DB and SMTP so tests have no external dependencies.

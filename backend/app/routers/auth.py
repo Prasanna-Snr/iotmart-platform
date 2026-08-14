@@ -92,7 +92,7 @@ def _utcnow() -> datetime:
 
 
 def _make_verification_token(email: str) -> str:
-    from jose import jwt as _jwt
+    import jwt as _jwt
     expire = _utcnow() + timedelta(minutes=settings.otp_expire_minutes + 2)
     return _jwt.encode(
         {"sub": email, "exp": expire, "type": _EMAIL_VERIFIED_TYPE},

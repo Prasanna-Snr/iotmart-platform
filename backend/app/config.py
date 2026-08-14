@@ -11,6 +11,9 @@ class Settings(BaseSettings):
     # Database
     database_url: str = "postgresql+asyncpg://iotmart:iotmart@localhost:5432/iotmart"
 
+    # Redis (rate-limit counter store)
+    redis_url: str = "redis://localhost:6379/0"
+
     # JWT
     secret_key: str = "change-me-in-production-use-a-long-random-string"
     algorithm: str = "HS256"
@@ -69,6 +72,14 @@ class Settings(BaseSettings):
             raise RuntimeError(
                 "Refusing to boot in production: SMTP_HOST must be configured "
                 "(otherwise password-reset / OTP emails cannot be delivered)."
+            )
+        if (
+            self.environment == "production"
+            and (not self.redis_url or self.redis_url == "redis://localhost:6379/0")
+        ):
+            raise RuntimeError(
+                "Refusing to boot in production: REDIS_URL must be set to a "
+                "non-local Redis instance (rate limiting depends on Redis)."
             )
 
 
