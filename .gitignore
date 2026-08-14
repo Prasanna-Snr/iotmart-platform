@@ -15,6 +15,12 @@
 next-env.d.ts
 *.tsbuildinfo
 
+# ─── Playwright e2e ──────────────────────────────────────────────────────────
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/
+
 # ─── Node / npm ──────────────────────────────────────────────────────────────
 node_modules/
 .pnp
@@ -29,6 +35,7 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 /coverage
+/.coverage
 
 # ─── Python / FastAPI backend ─────────────────────────────────────────────────
 backend/.venv/

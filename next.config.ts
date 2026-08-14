@@ -1,5 +1,7 @@
 import type { NextConfig } from 'next';
 
+const apiBase = process.env.API_INTERNAL_URL ?? 'http://localhost:8000';
+
 const securityHeaders = [
   { key: 'X-DNS-Prefetch-Control', value: 'on' },
   { key: 'X-Frame-Options', value: 'SAMEORIGIN' },
@@ -50,7 +52,7 @@ const nextConfig: NextConfig = {
     return [
       {
         source: '/uploads/:path*',
-        destination: 'http://localhost:8000/uploads/:path*',
+        destination: `${apiBase}/uploads/:path*`,
       },
     ];
   },
