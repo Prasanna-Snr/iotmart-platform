@@ -195,19 +195,6 @@ export interface User {
   totalSpent?: number;
 }
 
-// ─── Banner Types ─────────────────────────────────────────────────────────────
-
-export interface Banner {
-  id: string;
-  title: string;
-  subtitle: string;
-  ctaText: string;
-  ctaLink: string;
-  image: string;
-  active: boolean;
-  order: number;
-}
-
 // ─── Filter Types ─────────────────────────────────────────────────────────────
 
 export interface ProductFilters {
@@ -219,22 +206,4 @@ export interface ProductFilters {
   inStock?: boolean;
   search?: string;
   sortBy?: "price-asc" | "price-desc" | "rating" | "newest" | "popular";
-}
-
-// ─── Analytics Types ──────────────────────────────────────────────────────────
-
-export interface SalesStats {
-  totalRevenue: number;
-  totalOrders: number;
-  totalCustomers: number;
-  totalProducts: number;
-  revenueChange: number;
-  ordersChange: number;
-  customersChange: number;
-  recentOrders: Order[];
-}
-
-export interface ChartDataPoint {
-  label: string;
-  value: number;
 }

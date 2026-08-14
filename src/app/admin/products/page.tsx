@@ -19,7 +19,7 @@ export default async function AdminProductsPage({ searchParams }: PageProps) {
       category: params.category,
       page,
       page_size: 20,
-    }).catch(() => ({ items: [], total: 0, page: 1, page_size: 20 })),
+    }, { cache: "no-store" }).catch(() => ({ items: [], total: 0, page: 1, page_size: 20 })),
     categoriesApi.list().catch(() => []),
   ]);
 

@@ -3,9 +3,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from app.database import get_db
 from app.models.models import CMSPage
-from app.schemas.cms import CMSPageCreate, CMSPageUpdate, CMSPageOut, CMSPageListItem
+from app.schemas.cms import CMSPageListItem
 from app.security import get_current_admin
-from app.sanitize import sanitize_blocks
 from app.audit import record as audit
 
 router = APIRouter()
@@ -21,52 +20,6 @@ async def list_pages(db: AsyncSession = Depends(get_db)):
         item.block_count = len(p.blocks) if p.blocks else 0
         out.append(item)
     return out
-
-
-@router.get("/pages/slug/{slug}", response_model=CMSPageOut)
-async def get_page_by_slug(slug: str, db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(CMSPage).where(CMSPage.slug == slug))
-    page = result.scalar_one_or_none()
-    if not page:
-        raise HTTPException(status_code=404, detail="Page not found")
-    return CMSPageOut.model_validate(page)
-
-
-@router.get("/pages/{id}", response_model=CMSPageOut)
-async def get_page(id: str, db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(CMSPage).where(CMSPage.id == id))
-    page = result.scalar_one_or_none()
-    if not page:
-        raise HTTPException(status_code=404, detail="Page not found")
-    return CMSPageOut.model_validate(page)
-
-
-@router.post("/pages", response_model=CMSPageOut, status_code=201)
-async def create_page(body: CMSPageCreate, db: AsyncSession = Depends(get_db), admin=Depends(get_current_admin)):
-    if (await db.execute(select(CMSPage).where(CMSPage.slug == body.slug))).scalar_one_or_none():
-        raise HTTPException(status_code=400, detail="Slug already exists")
-    data = body.model_dump()
-    if isinstance(data.get("blocks"), list):
-        data["blocks"] = sanitize_blocks(data["blocks"])
-    page = CMSPage(**data)
-    db.add(page)
-    await db.flush()
-    await audit(db, admin, "cms.create", "cms_page", page.id, page.slug)
-    return CMSPageOut.model_validate(page)
-
-
-@router.put("/pages/{id}", response_model=CMSPageOut)
-async def save_page(id: str, body: CMSPageUpdate, db: AsyncSession = Depends(get_db), admin=Depends(get_current_admin)):
-    page = (await db.execute(select(CMSPage).where(CMSPage.id == id))).scalar_one_or_none()
-    if not page:
-        raise HTTPException(status_code=404, detail="Page not found")
-    data = body.model_dump(exclude_none=True)
-    if isinstance(data.get("blocks"), list):
-        data["blocks"] = sanitize_blocks(data["blocks"])
-    for field, value in data.items():
-        setattr(page, field, value)
-    await audit(db, admin, "cms.update", "cms_page", page.id, page.slug)
-    return CMSPageOut.model_validate(page)
 
 
 @router.delete("/pages/{id}", status_code=204)

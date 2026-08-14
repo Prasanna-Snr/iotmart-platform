@@ -128,11 +128,11 @@ export default function RootLayout({
           }}
         />
 
-        {/* PWA: register service worker (secure origin or localhost) */}
+        {/* PWA: register service worker on secure origins only (not localhost, to avoid stale-chunk caching during dev) */}
         <script
           dangerouslySetInnerHTML={{
             __html:
-              'if ((location.protocol === "https:" || location.hostname === "localhost") && "serviceWorker" in navigator) { window.addEventListener("load", function () { navigator.serviceWorker.register("/sw.js").catch(function () {}); }); }',
+              'if ("serviceWorker" in navigator) { if (location.hostname === "localhost") { navigator.serviceWorker.getRegistrations().then(function (rs) { rs.forEach(function (r) { r.unregister(); }); }).catch(function () {}); } else if (location.protocol === "https:") { window.addEventListener("load", function () { navigator.serviceWorker.register("/sw.js", { updateViaCache: "none" }).catch(function () {}); }); } }',
           }}
         />
       </body>

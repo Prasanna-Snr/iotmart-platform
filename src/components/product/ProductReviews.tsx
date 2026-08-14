@@ -97,7 +97,7 @@ export default function ProductReviews({ productId, reviews }: Props) {
               </div>
               <div className="flex items-center gap-3">
                 <time className="text-xs text-[#899581]">{formatDateShort(review.date)}</time>
-                {isOwn && !isEditing && (
+                {isOwn && !review.verified && !isEditing && (
                   <button
                     onClick={() => startEdit(review)}
                     className="flex items-center gap-1 text-xs text-[#5D1C34] font-medium hover:underline"

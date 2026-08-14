@@ -142,6 +142,14 @@ async def add_review(id: str, body: ReviewCreate, db: AsyncSession = Depends(get
     product = (await db.execute(select(Product).where(Product.id == id))).scalar_one_or_none()
     if not product:
         raise HTTPException(status_code=404, detail="Product not found")
+    existing = (await db.execute(
+        select(ProductReview).where(
+            ProductReview.user_id == current.id,
+            ProductReview.product_id == id,
+        )
+    )).scalar_one_or_none()
+    if existing:
+        raise HTTPException(status_code=409, detail="You have already reviewed this product.")
     review = ProductReview(product_id=id, user_id=current.id, user_name=current.name,
                            user_avatar=current.avatar, **body.model_dump())
     db.add(review)

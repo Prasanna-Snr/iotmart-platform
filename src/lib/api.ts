@@ -21,9 +21,8 @@ async function apiFetch<T>(
   path: string,
   init?: RequestInit & { token?: string; next?: { revalidate?: number } }
 ): Promise<T> {
-  const url = typeof window === "undefined"
-    ? `${BASE}/api/${path}`
-    : `/api/${path}`;
+  const isServer = typeof window === "undefined";
+  const url = isServer ? `${BASE}/api/${path}` : `/api/${path}`;
 
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
@@ -33,15 +32,19 @@ async function apiFetch<T>(
   const res = await fetch(url, {
     ...init,
     headers,
-    // `cache` and `next.revalidate` are mutually exclusive — when a
-    // revalidate window is requested, let Next.js drive caching via
-    // `revalidate` (force-cache) instead of forcing no-store.
-    cache: init?.cache ?? (init?.next?.revalidate != null ? "force-cache" : "no-store"),
+    // `cache` and `next.revalidate` are mutually exclusive — on the server,
+    // let Next.js drive caching via `revalidate` (force-cache). On the client
+    // `next` is meaningless, so never force-cache: `force-cache` makes the
+    // browser serve its HTTP cache even when stale (responses lack cache
+    // headers), which caused the admin edit form to show pre-save data.
+    cache: init?.cache ?? (isServer && init?.next?.revalidate != null ? "force-cache" : "no-store"),
   });
 
   if (!res.ok) {
     const err = await res.json().catch(() => ({ detail: res.statusText }));
-    throw new Error(err.detail ?? `API error ${res.status}`);
+    const e = new Error(err.detail ?? `API error ${res.status}`) as Error & { status?: number };
+    e.status = res.status;
+    throw e;
   }
 
   if (res.status === 204) return undefined as T;
@@ -79,16 +82,12 @@ export const authApi = {
 
   updateMe: (body: { name?: string; phone?: string; avatar?: string; address?: object; password?: string }) =>
     apiFetch("auth/me", { method: "PATCH", body: JSON.stringify(body) }),
-
-  logout: () =>
-    apiFetch("auth/logout", { method: "POST" }),
 };
 
 // ─── Categories ───────────────────────────────────────────────────────────────
 
 export const categoriesApi = {
   list: (): Promise<any[]> => apiFetch("categories", { next: { revalidate: 60 } }),
-  get: (slug: string): Promise<any> => apiFetch(`categories/${slug}`),
   create: (body: any, token: string) =>
     apiFetch("categories", { method: "POST", body: JSON.stringify(body), token }),
   update: (id: string, body: any, token: string) =>
@@ -101,7 +100,6 @@ export const categoriesApi = {
 
 export const brandsApi = {
   list: (): Promise<any[]> => apiFetch("brands", { next: { revalidate: 60 } }),
-  get: (slug: string): Promise<any> => apiFetch(`brands/${slug}`),
   create: (body: any, token: string) =>
     apiFetch("brands", { method: "POST", body: JSON.stringify(body), token }),
   update: (id: string, body: any, token: string) =>
@@ -125,13 +123,16 @@ export interface ProductFilters {
 }
 
 export const productsApi = {
-  list: (filters: ProductFilters = {}): Promise<{ items: any[]; total: number; page: number; page_size: number }> => {
+  list: (
+    filters: ProductFilters = {},
+    init?: RequestInit & { next?: { revalidate?: number } }
+  ): Promise<{ items: any[]; total: number; page: number; page_size: number }> => {
     const params = new URLSearchParams();
     Object.entries(filters).forEach(([k, v]) => {
       if (v !== undefined && v !== null && v !== "") params.set(k, String(v));
     });
     const qs = params.toString();
-    return apiFetch(`products${qs ? "?" + qs : ""}`, { next: { revalidate: 60 } });
+    return apiFetch(`products${qs ? "?" + qs : ""}`, { next: { revalidate: 60 }, ...init });
   },
   get: (slug: string): Promise<any> => apiFetch(`products/${slug}`, { next: { revalidate: 60 } }),
   getById: (id: string): Promise<any> => apiFetch(`products/id/${id}`, { next: { revalidate: 60 } }),
@@ -215,12 +216,6 @@ export const usersApi = {
     const q = qs.toString();
     return apiFetch(`users${q ? "?" + q : ""}`, { token });
   },
-  get: (id: string, token: string): Promise<any> =>
-    apiFetch(`users/${id}`, { token }),
-  update: (id: string, body: any, token: string): Promise<any> =>
-    apiFetch(`users/${id}`, { method: "PATCH", body: JSON.stringify(body), token }),
-  delete: (id: string, token: string): Promise<void> =>
-    apiFetch(`users/${id}`, { method: "DELETE", token }),
 };
 
 // ─── Coupons ──────────────────────────────────────────────────────────────────
@@ -257,12 +252,6 @@ export const reviewsApi = {
 export const contactApi = {
   submit: (body: { name: string; email: string; subject: string; message: string }): Promise<any> =>
     apiFetch("contact", { method: "POST", body: JSON.stringify(body) }),
-  list: (token: string): Promise<any[]> =>
-    apiFetch("contact", { token }),
-  markRead: (id: string, token: string): Promise<any> =>
-    apiFetch(`contact/${id}/read`, { method: "PATCH", token }),
-  delete: (id: string, token: string): Promise<void> =>
-    apiFetch(`contact/${id}`, { method: "DELETE", token }),
 };
 
 // ─── Settings ─────────────────────────────────────────────────────────────────
@@ -296,27 +285,8 @@ export const uploadApi = {
 
 export const cmsApi = {
   list: (): Promise<any[]> => apiFetch("cms/pages", { next: { revalidate: 60 } }),
-  get: (id: string): Promise<any> => apiFetch(`cms/pages/${id}`),
-  getBySlug: (slug: string): Promise<any> => apiFetch(`cms/pages/slug/${slug}`, { next: { revalidate: 60 } }),
-  create: (body: any, token: string): Promise<any> =>
-    apiFetch("cms/pages", { method: "POST", body: JSON.stringify(body), token }),
-  save: (id: string, body: any, token: string): Promise<any> =>
-    apiFetch(`cms/pages/${id}`, { method: "PUT", body: JSON.stringify(body), token }),
   delete: (id: string, token: string): Promise<any> =>
     apiFetch(`cms/pages/${id}`, { method: "DELETE", token }),
-};
-
-// ─── Banners ──────────────────────────────────────────────────────────────────
-
-export const bannersApi = {
-  list: (active?: boolean): Promise<any[]> =>
-    apiFetch(`banners${active === undefined ? "" : `?active=${active}`}`, { next: { revalidate: 60 } }),
-  create: (body: any, token: string) =>
-    apiFetch("banners", { method: "POST", body: JSON.stringify(body), token }),
-  update: (id: string, body: any, token: string) =>
-    apiFetch(`banners/${id}`, { method: "PUT", body: JSON.stringify(body), token }),
-  delete: (id: string, token: string) =>
-    apiFetch(`banners/${id}`, { method: "DELETE", token }),
 };
 
 // ─── Admin dashboard ──────────────────────────────────────────────────────────
@@ -369,9 +339,6 @@ export const rewardsApi = {
 export const analyticsApi = {
   summary: (token: string): Promise<any> =>
     apiFetch('analytics/summary', { token }),
-
-  dashboard: (token: string): Promise<any> =>
-    apiFetch('analytics/dashboard', { token }),
 
   topPages: (token: string, limit = 10): Promise<any[]> =>
     apiFetch(`analytics/top-pages?limit=${limit}`, { token }),

@@ -98,6 +98,11 @@ async def update_review(
         raise HTTPException(status_code=404, detail="Review not found")
     if str(review.user_id) != str(current.id) and current.role != "admin":
         raise HTTPException(status_code=403, detail="Forbidden")
+    if review.verified and current.role != "admin":
+        raise HTTPException(
+            status_code=403,
+            detail="This review is approved and can no longer be edited.",
+        )
     for field, value in body.model_dump(exclude_none=True).items():
         setattr(review, field, value)
     await db.flush()

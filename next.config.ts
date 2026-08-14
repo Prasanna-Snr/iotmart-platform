@@ -18,8 +18,13 @@ const nextConfig: NextConfig = {
 
   images: {
     remotePatterns: [
-      { protocol: 'https', hostname: '**' },
-      { protocol: 'http', hostname: '**' },
+      { protocol: 'https', hostname: 'images.unsplash.com' },
+      { protocol: 'https', hostname: 'plus.unsplash.com' },
+      { protocol: 'https', hostname: 'honeywell.scene7.com' },
+      { protocol: 'https', hostname: 'probots.co.in' },
+      { protocol: 'https', hostname: 'encrypted-tbn0.gstatic.com' },
+      { protocol: 'https', hostname: 'img.drz.lazcdn.com' },
+      { protocol: 'https', hostname: 'www.mdpi.com' },
     ],
     formats: ['image/avif', 'image/webp'],
     deviceSizes: [640, 750, 828, 1080, 1200, 1920],

@@ -6,7 +6,7 @@
  *  - Everything else same-origin: network-first, cache fallback.
  *  - Cross-origin requests are skipped entirely.
  */
-const CACHE_VERSION = "iotmart-v1";
+const CACHE_VERSION = "iotmart-v2";
 const STATIC_CACHE = CACHE_VERSION;
 const NAV_CACHE = `${CACHE_VERSION}-pages`;
 

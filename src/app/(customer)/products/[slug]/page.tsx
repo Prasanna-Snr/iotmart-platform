@@ -23,8 +23,23 @@ interface PageProps {
   params: Promise<{ slug: string }>;
 }
 
+interface RawReview {
+  id: string;
+  user_id: string;
+  user_name: string;
+  user_avatar?: string | null;
+  rating: number;
+  title: string;
+  body: string;
+  created_at: string;
+  verified: boolean;
+}
+
 /** Map API snake_case product to the camelCase Product type used by components */
 function mapProduct(p: any) {
+  // Only approved (verified) reviews are shown on the storefront. Rating and
+  // count are derived from that same set so they match what's displayed.
+  const approved = ((p.reviews ?? []) as RawReview[]).filter((r) => r.verified);
   return {
     id:               p.id,
     name:             p.name,
@@ -41,13 +56,15 @@ function mapProduct(p: any) {
     tags:             p.tags ?? [],
     specs:            p.specs ?? [],
     stock:            p.stock ?? 0,
-    rating:           p.rating ?? 0,
-    reviewCount:      p.review_count ?? 0,
-    reviews:          (p.reviews ?? []).map((r: any) => ({
+    rating:           approved.length
+      ? Math.round((approved.reduce((s, r) => s + (r.rating ?? 0), 0) / approved.length) * 10) / 10
+      : 0,
+    reviewCount:      approved.length,
+    reviews:          approved.map((r) => ({
       id:          r.id,
       userId:      r.user_id,
       userName:    r.user_name,
-      userAvatar:  r.user_avatar,
+      userAvatar:  r.user_avatar ?? undefined,
       rating:      r.rating,
       title:       r.title,
       body:        r.body,

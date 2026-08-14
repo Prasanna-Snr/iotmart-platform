@@ -7,3 +7,4 @@ backend
 .env.*
 !.env.example
 tsconfig.tsbuildinfo
+public/*.mp4

@@ -50,12 +50,3 @@ class DailyTrend(BaseModel):
     day: str
     unique_visitors: int
     page_views: int
-
-
-class AnalyticsDashboard(BaseModel):
-    summary: AnalyticsSummary
-    top_pages: list[TopPage]
-    devices: list[DeviceBreakdown]
-    browsers: list[BrowserBreakdown]
-    countries: list[CountryBreakdown]
-    daily_trend: list[DailyTrend]

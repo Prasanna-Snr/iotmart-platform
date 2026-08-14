@@ -85,8 +85,3 @@ export function getCustomerSession(): CustomerUser | null {
   }
   try { return JSON.parse(u); } catch { return null; }
 }
-
-// Deprecated: tokens are httpOnly cookies now, never stored in localStorage.
-export function getCustomerToken(): string | null {
-  return null;
-}

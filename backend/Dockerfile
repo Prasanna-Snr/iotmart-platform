@@ -6,10 +6,8 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY app ./app
-COPY migrations ./migrations
-COPY alembic.ini .
 COPY main.py .
 
 EXPOSE 8000
 
-CMD ["sh", "-c", "alembic upgrade head && uvicorn main:app --host 0.0.0.0 --port 8000"]
+CMD ["sh", "-c", "uvicorn main:app --host 0.0.0.0 --port 8000"]

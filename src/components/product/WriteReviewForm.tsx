@@ -17,7 +17,6 @@ export default function WriteReviewForm({ productId, onSubmitted }: Props) {
   const [rating, setRating]   = useState(0);
   const [hovered, setHovered] = useState(0);
   const [title, setTitle]     = useState("");
-  const [body, setBody]       = useState("");
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError]     = useState("");
@@ -47,13 +46,12 @@ export default function WriteReviewForm({ productId, onSubmitted }: Props) {
     try {
       await productsApi.addReview(
         productId,
-        { rating, title: title.trim(), body: body.trim() },
+        { rating, title: title.trim() },
         ""
       );
       setSuccess(true);
       setRating(0);
       setTitle("");
-      setBody("");
       router.refresh();
       onSubmitted?.();
     } catch (err: any) {
@@ -165,22 +163,6 @@ export default function WriteReviewForm({ productId, onSubmitted }: Props) {
           {errors.title && (
             <p className="text-xs text-red-500 mt-1">{errors.title}</p>
           )}
-        </div>
-
-        {/* Body */}
-        <div>
-          <label className="block text-xs font-medium text-[#899581] mb-1">
-            Review <span className="text-[#CDBBAD] font-normal">(optional)</span>
-          </label>
-          <textarea
-            value={body}
-            onChange={(e) => setBody(e.target.value)}
-            placeholder="Tell others what you think about this product…"
-            rows={4}
-            maxLength={1000}
-            className="w-full border border-[#CDBBAD] rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#5D1C34]/30 resize-none"
-          />
-          <p className="text-xs text-[#CDBBAD] text-right mt-0.5">{body.length}/1000</p>
         </div>
 
         <button

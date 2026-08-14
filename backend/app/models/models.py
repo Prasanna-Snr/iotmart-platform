@@ -269,22 +269,6 @@ class EmailPendingVerification(Base):
     created_at:    Mapped[datetime]  = mapped_column(DateTime(timezone=True), default=utcnow)
 
 
-# ─── Banners ──────────────────────────────────────────────────────────────────
-
-class Banner(Base):
-    __tablename__ = "banners"
-
-    id:         Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    title:      Mapped[str]       = mapped_column(String(255), nullable=False)
-    subtitle:   Mapped[str]       = mapped_column(Text, default="")
-    cta_text:   Mapped[str]       = mapped_column(String(100), default="")
-    cta_link:   Mapped[str]       = mapped_column(String(500), default="")
-    image:      Mapped[str]       = mapped_column(Text, default="")
-    active:     Mapped[bool]      = mapped_column(Boolean, default=True)
-    order:      Mapped[int]       = mapped_column(Integer, default=0)
-    created_at: Mapped[datetime]  = mapped_column(DateTime(timezone=True), default=utcnow)
-
-
 # ─── Analytics ────────────────────────────────────────────────────────────────
 
 class PageView(Base):
@@ -465,7 +449,7 @@ class Coupon(Base):
 
 class DailyAnalytics(Base):
     """Pre-aggregated per-day analytics so dashboards avoid scanning the
-    unbounded `page_views` table. Rebuilt by `app.analytics_jobs`."""
+    unbounded `page_views` table. Rebuilt by the daily rollup job."""
 
     __tablename__ = "daily_analytics"
 

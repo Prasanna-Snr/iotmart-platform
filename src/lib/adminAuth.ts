@@ -85,8 +85,3 @@ export function getAdminSession(): AdminUser | null {
   }
   try { return JSON.parse(u); } catch { return null; }
 }
-
-// Deprecated: tokens are httpOnly cookies now, never stored in localStorage.
-export function getAdminToken(): string | null {
-  return null;
-}

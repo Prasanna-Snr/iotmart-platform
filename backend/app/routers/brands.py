@@ -17,15 +17,6 @@ async def list_brands(db: AsyncSession = Depends(get_db)):
     return [BrandOut.model_validate(b) for b in result.scalars().all()]
 
 
-@router.get("/{slug}", response_model=BrandOut)
-async def get_brand(slug: str, db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(Brand).where(Brand.slug == slug))
-    brand = result.scalar_one_or_none()
-    if not brand:
-        raise HTTPException(status_code=404, detail="Brand not found")
-    return BrandOut.model_validate(brand)
-
-
 @router.post("", response_model=BrandOut, status_code=201)
 async def create_brand(body: BrandCreate, db: AsyncSession = Depends(get_db), admin=Depends(get_current_admin)):
     existing = await db.execute(select(Brand).where(Brand.slug == body.slug))

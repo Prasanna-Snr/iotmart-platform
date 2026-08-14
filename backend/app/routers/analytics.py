@@ -1,4 +1,3 @@
-import asyncio
 from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, Request, Response, BackgroundTasks
@@ -10,7 +9,7 @@ from app.security import get_current_admin
 from app.limiter import limiter
 from app.schemas.analytics import (
     TrackRequest, HeartbeatRequest,
-    AnalyticsDashboard, AnalyticsSummary,
+    AnalyticsSummary,
     TopPage, DeviceBreakdown, BrowserBreakdown, CountryBreakdown, DailyTrend,
 )
 from app.services.analytics_service import (
@@ -136,29 +135,6 @@ async def analytics_summary(
     _=Depends(get_current_admin),
 ):
     return await get_summary(db)
-
-
-@router.get("/dashboard", response_model=AnalyticsDashboard)
-async def analytics_dashboard(
-    db: AsyncSession = Depends(get_db),
-    _=Depends(get_current_admin),
-):
-    summary, top_pages, devices, browsers, countries, trend = await asyncio.gather(
-        get_summary(db),
-        get_top_pages(db),
-        get_device_breakdown(db),
-        get_browser_breakdown(db),
-        get_country_breakdown(db),
-        get_daily_trend(db),
-    )
-    return AnalyticsDashboard(
-        summary=summary,
-        top_pages=top_pages,
-        devices=devices,
-        browsers=browsers,
-        countries=countries,
-        daily_trend=trend,
-    )
 
 
 @router.get("/top-pages", response_model=list[TopPage])

@@ -10,24 +10,6 @@ export const CURRENCY_SYMBOL = "Rs. ";
 export const FREE_SHIPPING_THRESHOLD = 50;
 export const SHIPPING_COST = 5.99;
 export const ITEMS_PER_PAGE = 12;
-export const REVIEWS_PER_PAGE = 5;
-
-export const COLORS = {
-  dark: "#11100E",
-  burgundy: "#5D1C34",
-  gold: "#A67D45",
-  sage: "#899581",
-  beige: "#CDBBAD",
-  bg: "#F0E9E3",
-} as const;
-
-export const SORT_OPTIONS = [
-  { value: "popular", label: "Most Popular" },
-  { value: "newest", label: "Newest First" },
-  { value: "price-asc", label: "Price: Low to High" },
-  { value: "price-desc", label: "Price: High to Low" },
-  { value: "rating", label: "Highest Rated" },
-] as const;
 
 export const DIFFICULTY_COLORS: Record<string, string> = {
   Beginner: "bg-green-100 text-green-800",
@@ -86,61 +68,3 @@ export const FOOTER_LINKS = {
   ],
 } as const;
 
-export const ADMIN_NAV = [
-  {
-    label: "Dashboard",
-    href: "/admin",
-    icon: "LayoutDashboard",
-  },
-  {
-    label: "Products",
-    href: "/admin/products",
-    icon: "Package",
-    children: [
-      { label: "All Products", href: "/admin/products" },
-      { label: "Add Product", href: "/admin/products/new" },
-      { label: "Categories", href: "/admin/categories" },
-      { label: "Brands", href: "/admin/brands" },
-    ],
-  },
-  {
-    label: "Orders",
-    href: "/admin/orders",
-    icon: "ShoppingBag",
-  },
-  {
-    label: "Customers",
-    href: "/admin/customers",
-    icon: "Users",
-  },
-  {
-    label: "Tutorials",
-    href: "/admin/tutorials",
-    icon: "BookOpen",
-    children: [
-      { label: "All Tutorials", href: "/admin/tutorials" },
-      { label: "Add Tutorial", href: "/admin/tutorials/new" },
-      { label: "Categories", href: "/admin/tutorials/categories" },
-    ],
-  },
-  {
-    label: "Reviews",
-    href: "/admin/reviews",
-    icon: "Star",
-  },
-  {
-    label: "Banners",
-    href: "/admin/banners",
-    icon: "Image",
-  },
-  {
-    label: "Analytics",
-    href: "/admin/analytics",
-    icon: "BarChart2",
-  },
-  {
-    label: "Settings",
-    href: "/admin/settings",
-    icon: "Settings",
-  },
-] as const;

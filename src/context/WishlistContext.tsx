@@ -26,26 +26,24 @@ export function WishlistProvider({ children }: { children: ReactNode }) {
   const { user, ready } = useCustomerAuth();
   const [ids, setIds] = useState<Set<string>>(new Set());
 
-  // Load the wishlist whenever the auth state changes. When logged out the
-  // returned values below report an empty wishlist regardless of stale state.
+  // Load the wishlist from the backend session (httpOnly cookie) on mount and
+  // whenever the auth state changes. A 401 means no valid session — report an
+  // empty wishlist and drop any stale state.
   useEffect(() => {
-    if (!user) return;
     let cancelled = false;
     wishlistApi
       .list("")
       .then((items) => {
         if (!cancelled) setIds(new Set(items.map((i) => i.product_id)));
       })
-      .catch(() => {});
+      .catch(() => {
+        if (!cancelled) setIds(new Set());
+      });
     return () => { cancelled = true; };
   }, [user, ready]);
 
   const toggleWishlist = useCallback(
     async (productId: string) => {
-      if (!user) {
-        router.push("/login?redirect=" + encodeURIComponent(window.location.pathname + window.location.search));
-        return;
-      }
       const exists = ids.has(productId);
       // Optimistic update
       setIds((prev) => {
@@ -57,7 +55,7 @@ export function WishlistProvider({ children }: { children: ReactNode }) {
       try {
         if (exists) await wishlistApi.remove(productId, "");
         else await wishlistApi.add(productId, "");
-      } catch {
+      } catch (err) {
         // Roll back on failure
         setIds((prev) => {
           const next = new Set(prev);
@@ -65,18 +63,22 @@ export function WishlistProvider({ children }: { children: ReactNode }) {
           else next.delete(productId);
           return next;
         });
+        // Genuinely unauthenticated — send the user to the login page.
+        if ((err as { status?: number })?.status === 401) {
+          router.push("/login?redirect=" + encodeURIComponent(window.location.pathname + window.location.search));
+        }
       }
     },
-    [ids, user, router]
+    [ids, router]
   );
 
   const value = useMemo<WishlistContextValue>(
     () => ({
-      isInWishlist: (productId: string) => !!user && ids.has(productId),
+      isInWishlist: (productId: string) => ids.has(productId),
       toggleWishlist,
-      count: user ? ids.size : 0,
+      count: ids.size,
     }),
-    [ids, user, toggleWishlist]
+    [ids, toggleWishlist]
   );
 
   return (
