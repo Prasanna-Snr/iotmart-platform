@@ -373,7 +373,8 @@ async def run_daily_rollup(db: AsyncSession, day: date | None = None) -> int:
         devices=devices,
         browsers=browsers,
         countries=countries,
-    ).on_conflict_do_update(
+    )
+    stmt = stmt.on_conflict_do_update(
         index_elements=[DailyAnalytics.day],
         set_={
             "views": stmt.excluded.views,
