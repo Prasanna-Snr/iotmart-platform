@@ -20,7 +20,7 @@ type Step = "email" | "otp" | "details";
 export default function RegisterPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const redirectTo = searchParams.get("redirect") ?? "/profile";
+  const redirectTo = searchParams.get("redirect") ?? "/";
   const { setAuth } = useCustomerAuth();
 
   // Step tracker
