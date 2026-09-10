@@ -153,7 +153,7 @@ export default async function ProductDetailPage({ params }: PageProps) {
         />
 
         {/* Product main */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 mb-16">
+        <div className="grid grid-cols-1 lg:grid-cols-[2fr_3fr] gap-10 mb-16">
           {/* Gallery */}
           <ProductGallery images={product.images} productName={product.name} />
 
